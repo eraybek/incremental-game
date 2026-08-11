@@ -5,7 +5,6 @@ export type UpgradeId =
   | 'bait'
   | 'reel'
   | 'float'
-  | 'arm'
   | 'market'
   | 'rods'
   | 'autocast';

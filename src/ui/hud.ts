@@ -19,7 +19,10 @@ export class Hud {
   private bookBody = $('tab-book');
   private cleanBody = $('tab-clean');
   private toasts = $('toasts');
-  private hint = $('hint');
+  private panel = $('panel');
+  private scrim = $('scrim');
+  private openBtn = $('panel-open');
+  private dot = $('panel-dot');
 
   /** Yukseltme karti govdeleri; her cerceve yeniden kurulmasin diye saklanir. */
   private cards = new Map<UpgradeId, {
@@ -27,12 +30,44 @@ export class Hud {
   }>();
   private bookBuilt = false;
   private activeTab = 'gear';
+  /** Panel kapaliyken sahne dokunuslari oyuna gider. */
+  private panelOpen = false;
 
   constructor(game: Game) {
     this.game = game;
     this.buildTabs();
+    this.buildDrawer();
     this.buildGear();
     this.buildClean();
+  }
+
+  // --- Panel surgusu -------------------------------------------------------
+
+  private buildDrawer(): void {
+    // Dugme ikonu: techizat cantasi. Yol dagitim tabanina gore kurulur.
+    const icon = this.openBtn.querySelector<HTMLElement>('.panel-open-icon');
+    if (icon) icon.setAttribute('style', spriteCss({ sheet: 'gear', i: 31 }, 30));
+
+    this.openBtn.addEventListener('click', () => this.setPanel(true));
+    $('panel-close').addEventListener('click', () => this.setPanel(false));
+    this.scrim.addEventListener('click', () => this.setPanel(false));
+    // Panel acikken sahnenin arkasina dokunmak paneli kapatir, atis yapmaz.
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.panelOpen) this.setPanel(false);
+    });
+  }
+
+  setPanel(open: boolean): void {
+    this.panelOpen = open;
+    this.panel.classList.toggle('is-closed', !open);
+    this.panel.setAttribute('aria-hidden', String(!open));
+    this.scrim.hidden = !open;
+    this.openBtn.classList.toggle('is-hidden', open);
+    if (open && this.activeTab === 'book') this.buildBook();
+  }
+
+  get isPanelOpen(): boolean {
+    return this.panelOpen;
   }
 
   private buildTabs(): void {
@@ -208,11 +243,6 @@ export class Hud {
     setTimeout(() => el.remove(), 2800);
   }
 
-  setHint(text: string | null): void {
-    this.hint.textContent = text ?? '';
-    this.hint.classList.toggle('is-visible', !!text);
-  }
-
   // --- Cerceve -------------------------------------------------------------
 
   private frame = 0;
@@ -226,6 +256,14 @@ export class Hud {
     // Panel her cerceve degil, saniyede ~6 kez tazelenir.
     this.frame++;
     if (this.frame % 10 !== 0) return;
+
+    // Kapali panelde icerik tazelemeye gerek yok; sadece "alinabilir bir sey
+    // var" noktasi guncellenir ki oyuncu paneli bosuna acmasin.
+    if (!this.panelOpen) {
+      const any = UPGRADES.some((u) => this.game.isRevealed(u.id) && this.game.canAfford(u.id));
+      this.dot.hidden = !any;
+      return;
+    }
     if (this.activeTab === 'gear') this.refreshGear(false);
     else if (this.activeTab === 'book') this.refreshBook();
     else this.refreshClean();

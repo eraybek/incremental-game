@@ -172,10 +172,6 @@ export function autoCastDelayAt(level: number): number {
   return Math.max(0.3, 4.5 * Math.pow(0.87, level - 1));
 }
 
-export function chargeTimeAt(level: number): number {
-  return Math.max(0.18, 1.0 * Math.pow(0.9, level));
-}
-
 export function waitTimeAt(level: number): number {
   return Math.max(0.35, 2.6 * Math.pow(0.9, level));
 }
@@ -222,13 +218,6 @@ export const UPGRADES: Upgrade[] = [
     revealAt: 90,
   },
   {
-    id: 'arm', name: 'Kol Gücü', sprite: { sheet: 'gear', i: 25 },
-    desc: 'Nişan {v} içinde tamamlanıyor.',
-    baseCost: 200, growth: 1.5, maxLevel: 30,
-    valueAt: (l) => `${chargeTimeAt(l).toFixed(2)} sn`,
-    revealAt: 150,
-  },
-  {
     id: 'market', name: 'Pazarlık', sprite: { sheet: 'obj', i: 12 },
     desc: 'Tüm satışlar {v} değerinde.',
     baseCost: 320, growth: 1.55, maxLevel: 100,
@@ -238,9 +227,9 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'rods', name: 'Ekstra Olta', sprite: { sheet: 'gear', i: 1 },
     desc: 'Aynı anda {v} olta atabiliyorsun.',
-    baseCost: 900, growth: 7, maxLevel: 4,
+    baseCost: 350, growth: 4.2, maxLevel: 7,
     valueAt: (l) => `${1 + l}`,
-    revealAt: 500,
+    revealAt: 180,
   },
   {
     id: 'autocast', name: 'Otomatik Olta', sprite: { sheet: 'gear', i: 35 },

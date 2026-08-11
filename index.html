@@ -19,7 +19,7 @@
         <div id="floats"></div>
 
         <div id="topbar">
-          <div class="stat">
+          <div class="stat stat-money">
             <span class="stat-label">Para</span>
             <span class="stat-value" id="money">0</span>
           </div>
@@ -33,15 +33,25 @@
           </div>
         </div>
 
-        <div id="hint">Suya basılı tut, nişan al, bırak</div>
+        <!-- Paneli acan dugme; satin alinabilir bir sey varsa uzerinde nokta belirir -->
+        <button id="panel-open" type="button" aria-label="Teçhizat panelini aç">
+          <span class="panel-open-icon"></span>
+          <span class="panel-dot" id="panel-dot" hidden></span>
+        </button>
+
         <div id="toasts"></div>
       </div>
 
-      <aside id="panel">
-        <div id="tabs">
-          <button class="tab is-active" data-tab="gear" type="button">Teçhizat</button>
-          <button class="tab" data-tab="book" type="button">Defter</button>
-          <button class="tab" data-tab="clean" type="button">Temiz Deniz</button>
+      <div id="scrim" hidden></div>
+
+      <aside id="panel" class="is-closed" aria-hidden="true">
+        <div id="panel-head">
+          <div id="tabs">
+            <button class="tab is-active" data-tab="gear" type="button">Teçhizat</button>
+            <button class="tab" data-tab="book" type="button">Defter</button>
+            <button class="tab" data-tab="clean" type="button">Temiz Deniz</button>
+          </div>
+          <button id="panel-close" type="button" aria-label="Paneli kapat">✕</button>
         </div>
         <div class="tab-body is-active" id="tab-gear"></div>
         <div class="tab-body" id="tab-book"></div>

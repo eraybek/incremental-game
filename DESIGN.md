@@ -10,11 +10,12 @@ derine inebilen teçhizat alıyorsun.
 
 ## Çekirdek döngü
 
-1. **Nişan** — Suda bir noktaya parmağını basılı tutuyorsun. Nişan halkası ~1
-   saniyede doluyor. Bu süre boyunca parmağını kaydırarak hedefi
-   değiştirebiliyorsun.
-2. **Atış** — Bıraktığında olta ekranın dışından bir yay çizerek geliyor,
-   şamandıra o noktaya çakılıyor. Kanca seçtiğin derinliğe iniyor.
+1. **Nişan** — Suda bir noktaya dokunuyorsun. Kısa dokunuş doğrudan atar;
+   parmağını basılı tutarsan nişan halkası belirir ve parmağını kaydırarak
+   hedefi ayarlarsın. İki jest de parmak kalkınca atışla bitiyor, yani
+   öğrenilecek ayrı bir şey yok.
+2. **Atış** — Parmağını kaldırdığında olta ekranın dışından bir yay çizerek
+   geliyor, şamandıra o noktaya çakılıyor. Kanca seçtiğin derinliğe iniyor.
 3. **Bekleyiş** — Rastgele bir süre (temelde 1.5–4 sn). Şamandıra suda
    sallanıyor. Bu ölü zaman değil: birden fazla oltan varsa diğerlerini
    atıyorsun.
@@ -55,9 +56,8 @@ görünür kaydı. Tamamlanan bandın kalıcı bir bonus vermesi planlanıyor
 | Yem | Isırma şansı ↑, nadir şansı ↑ | Boş dönüşü azaltır |
 | Makara | Çekme hızı ↑ | Döngü süresi ↓ |
 | Şamandıra | Bekleme süresi ↓ | Döngü süresi ↓ |
-| Kol | Nişan süresi ↓ | Döngü süresi ↓ |
 | Pazar | Satış fiyatı ↑ | Düz gelir çarpanı |
-| Ekstra Olta | Aynı anda 2–4 şamandıra | Paralelleşme |
+| Ekstra Olta | Aynı anda 8'e kadar şamandıra | Paralelleşme |
 | Otomatik Olta | Son noktaya kendi atıyor | Idle'a geçiş |
 
 Maliyetler üstel (`base × growth^level`), yükseltmeler belirli bir toplam
@@ -69,6 +69,17 @@ kazanca ulaşınca panelde beliriyor — ilk ekran kalabalık olmasın diye.
 atılıyor. Oltalar indekslerine göre yayılarak atılır ki şamandıralar üst üste
 binmesin. Manuel oynamanın anlamı, ısırma anındaki ×2 bonusu olarak korunuyor
 (bkz. "Isırma anı").
+
+## Sahne ve arayüz
+
+Sahnenin tamamı su altı; gökyüzü şeridi çizilmiyor. Oyun su altında geçtiği
+için o şerit iş görmüyor ve yatay ekranda en kıt kaynak olan dikey alanı
+yiyordu. Su yüzeyi ekranın en üstünde hareketli bir köpük/parlama şeridi
+olarak duruyor, olta yine kadraj dışından geliyor.
+
+Teçhizat paneli sürekli açık değil; sağdan (dikey ekranda alttan) gelen bir
+sürgü. Sahne her zaman tam ekran. Panelin açma düğmesinde, satın alınabilir
+bir yükseltme varsa bir nokta beliriyor — oyuncu paneli boşuna açmasın diye.
 
 ## Kapsam dışı (şimdilik)
 

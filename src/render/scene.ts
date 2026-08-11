@@ -5,11 +5,14 @@ import type { Game } from '../game/state';
 import type { Rod } from '../game/types';
 import { loadSheets, sheetTexture, type SpriteRef } from './atlas';
 
-/** Su yuzeyinin ekrandaki dikey yeri (dunya birimi; ekran yuksekligi = 1). */
-const SURFACE_Y = 0.34;
+/**
+ * Su yuzeyi ekranin en ustunde; sahnenin tamami su alti. Gokyuzu serit
+ * cizilmez - oyunun tamami su altinda gectigi icin dikey alani yiyordu.
+ */
+const SURFACE_Y = 0.5;
 const BOTTOM_Y = -0.5;
 /** Oltanin geldigi nokta: ekranin sol ust disi. */
-const ORIGIN = new THREE.Vector2(-0.62, 0.44);
+const ORIGIN = new THREE.Vector2(-0.62, 0.60);
 
 const DECOR_COUNT = 16;
 const BUBBLE_COUNT = 90;
@@ -57,7 +60,6 @@ export class SceneView {
 
   private water!: THREE.Mesh;
   private waterMat!: THREE.ShaderMaterial;
-  private sky!: THREE.Mesh;
   private beams!: THREE.Mesh;
   private bubbles!: THREE.Points;
   private decor: Decor[] = [];
@@ -87,7 +89,6 @@ export class SceneView {
 
   async init(): Promise<void> {
     await loadSheets(new THREE.TextureLoader());
-    this.buildSky();
     this.buildWater();
     this.buildBeams();
     this.buildBubbles();
@@ -140,29 +141,6 @@ export class SceneView {
   }
 
   // --- Sahne kurulumu ------------------------------------------------------
-
-  private buildSky(): void {
-    const mat = new THREE.ShaderMaterial({
-      depthTest: false,
-      uniforms: { uTime: { value: 0 } },
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }`,
-      fragmentShader: `
-        varying vec2 vUv;
-        void main() {
-          vec3 top = vec3(0.29, 0.55, 0.72);
-          vec3 horizon = vec3(0.62, 0.80, 0.86);
-          gl_FragColor = vec4(mix(horizon, top, pow(vUv.y, 0.7)), 1.0);
-        }`,
-    });
-    this.sky = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
-    this.sky.renderOrder = -20;
-    this.scene.add(this.sky);
-  }
 
   private buildWater(): void {
     // ZONES renklerini shader'a sabit dizi olarak tasi.
@@ -221,6 +199,16 @@ export class SceneView {
 
           // Cok hafif dikey dalgalanma; su durgun gorunmesin.
           col += 0.012 * sin(vUv.x * 26.0 + uTime * 0.7 + t * 8.0);
+
+          // Yuzey: ekranin en ustunde hareketli bir parlama ve kopuk seridi.
+          // Gokyuzu cizilmedigi icin "su yuzeyi burada" isaretini bu veriyor.
+          float wave = 0.004 * sin(vUv.x * 34.0 - uTime * 1.6)
+                     + 0.003 * sin(vUv.x * 61.0 + uTime * 2.3);
+          float surf = smoothstep(0.030 + wave, 0.0, t);
+          col = mix(col, vec3(0.86, 0.95, 1.0), surf * 0.55);
+          float foam = smoothstep(0.012 + wave, 0.004 + wave, t)
+                     * smoothstep(0.0, 0.006, t);
+          col += foam * 0.35;
 
           gl_FragColor = vec4(col, 1.0);
         }`,
@@ -297,7 +285,18 @@ export class SceneView {
         phase: Math.random() * Math.PI * 2,
         band: -1,
       });
-      mesh.position.x = (Math.random() - 0.5) * 2;
+      // Ilk konum resize()'da ekran genisligine gore dagitilir.
+      mesh.position.x = Number.NaN;
+    }
+  }
+
+  /** Dekor baliklarini gorunur genislige yayar; dar ekranda bosluk kalmasin. */
+  private spreadDecor(): void {
+    const limit = this.halfWidth + 0.1;
+    for (const d of this.decor) {
+      if (Number.isNaN(d.mesh.position.x)) {
+        d.mesh.position.x = (Math.random() - 0.5) * 2 * limit;
+      }
     }
   }
 
@@ -363,14 +362,13 @@ export class SceneView {
     this.camera.updateProjectionMatrix();
 
     const fullW = this.aspect + 0.02;
-    this.sky.scale.set(fullW, 0.5 - SURFACE_Y + 0.02, 1);
-    this.sky.position.set(0, (0.5 + SURFACE_Y) / 2, 0);
-
     const waterH = SURFACE_Y - BOTTOM_Y;
     this.water.scale.set(fullW, waterH, 1);
     this.water.position.set(0, (SURFACE_Y + BOTTOM_Y) / 2, 0);
     this.beams.scale.copy(this.water.scale);
     this.beams.position.copy(this.water.position);
+
+    this.spreadDecor();
   }
 
   // --- Cerceve -------------------------------------------------------------
@@ -521,15 +519,20 @@ export class SceneView {
   }
 
   private updateAim(aim: { active: boolean; x: number; depth: number; progress: number }): void {
-    this.aimRing.visible = aim.active;
-    this.aimFill.visible = aim.active;
-    if (!aim.active) return;
+    // Halka yalnizca oyuncu parmagini bekletince belirir; kisa dokunusta hic
+    // gorunmez ki hizli atis akici hissettirsin.
+    const show = aim.active && aim.progress > 0.01;
+    this.aimRing.visible = show;
+    this.aimFill.visible = show;
+    if (!show) return;
     const x = this.rodToWorldX(aim.x);
     const y = this.depthToY(aim.depth);
     this.aimRing.position.set(x, y, 0);
     this.aimFill.position.set(x, y, 0);
+    this.aimRing.scale.setScalar(1.25 - aim.progress * 0.25);
     this.aimFill.scale.setScalar(clamp(aim.progress, 0, 1));
-    (this.aimFill.material as THREE.MeshBasicMaterial).opacity = 0.35 + aim.progress * 0.5;
+    (this.aimRing.material as THREE.MeshBasicMaterial).opacity = 0.35 + aim.progress * 0.45;
+    (this.aimFill.material as THREE.MeshBasicMaterial).opacity = 0.25 + aim.progress * 0.55;
   }
 
   // --- Yuzen yazilar -------------------------------------------------------
@@ -550,8 +553,8 @@ export class SceneView {
   spawnFloatAtRod(rod: Rod, text: string, className: string): void {
     const p = this.rodPosition(rod);
     const stagger = (rod.index % 3) * 0.035;
-    // Yuzeye varan olta gokyuzunde yazi birakmasin; suyun icinde kalsin.
-    const y = Math.min(p.y, SURFACE_Y - 0.02) - stagger;
+    // Ust bar ile cakismasin diye yazilar yuzeyin biraz altindan baslar.
+    const y = Math.min(p.y, SURFACE_Y - 0.12) - stagger;
     this.spawnFloat(text, className, p.x, y);
   }
 

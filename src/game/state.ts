@@ -7,7 +7,6 @@ import {
   UPGRADE_BY_ID,
   autoCastDelayAt,
   biteChanceAt,
-  chargeTimeAt,
   costOf,
   junkChanceAt,
   lineDepthAt,
@@ -18,8 +17,8 @@ import type {
   Catchable, Fish, Hooked, Junk, LogEntry, Rod, SaveData, UpgradeId,
 } from './types';
 
-const SAVE_KEY = 'derin-sular-save-v2';
-const SAVE_VERSION = 2;
+const SAVE_KEY = 'derin-sular-save-v3';
+const SAVE_VERSION = 3;
 
 /** Isirma penceresi: oyuncunun mukemmel cekis icin dokunma suresi. */
 export const BITE_WINDOW = 0.6;
@@ -61,7 +60,7 @@ export class Game {
   /** Toplanan cop sayisi. */
   cleanliness = 0;
   upgrades: Record<UpgradeId, number> = {
-    line: 0, bait: 0, reel: 0, float: 0, arm: 0, market: 0, rods: 0, autocast: 0,
+    line: 0, bait: 0, reel: 0, float: 0, market: 0, rods: 0, autocast: 0,
   };
   log: Record<string, LogEntry> = {};
   rods: Rod[] = [];
@@ -104,10 +103,6 @@ export class Game {
 
   get reelSpeed(): number {
     return reelSpeedAt(this.upgrades.reel);
-  }
-
-  get chargeTime(): number {
-    return chargeTimeAt(this.upgrades.arm);
   }
 
   get avgWaitTime(): number {

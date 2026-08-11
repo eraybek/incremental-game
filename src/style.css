@@ -1,5 +1,5 @@
 :root {
-  --panel-bg: #0c1b28;
+  --panel-bg: #0a1826;
   --panel-bg-2: #12283a;
   --line: #1e3a52;
   --text: #dceaf4;
@@ -10,6 +10,7 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
+  --panel-w: 330px;
 }
 
 * { box-sizing: border-box; }
@@ -28,34 +29,20 @@ html, body {
   overscroll-behavior: none;
 }
 
-#app {
-  position: fixed;
-  inset: 0;
-  display: flex;
-}
+#app { position: fixed; inset: 0; }
 
-/* --- Sahne --------------------------------------------------------------- */
+/* --- Sahne: panel bir surgu oldugu icin her zaman tam ekran -------------- */
 
 #stage {
-  position: relative;
-  flex: 1 1 auto;
-  min-width: 0;
+  position: absolute;
+  inset: 0;
   touch-action: none;
   cursor: crosshair;
 }
 
-#scene {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
+#scene { display: block; width: 100%; height: 100%; }
 
-#floats {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 5;
-}
+#floats { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 
 .float {
   position: absolute;
@@ -64,23 +51,23 @@ html, body {
   font-weight: 700;
   font-size: 15px;
   white-space: nowrap;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.85);
   will-change: transform, opacity;
 }
 .float-money { color: var(--gold); }
-.float-perfect { color: #fff2b0; font-size: 19px; }
-.float-junk { color: #a9c4d4; font-size: 13px; }
+.float-perfect { color: #fff2b0; font-size: 20px; }
+.float-junk { color: #b9d2e0; font-size: 13px; }
 .float-empty { color: #6f8a9c; font-size: 13px; }
-.float-bite { color: #ff6b6b; font-size: 26px; }
+.float-bite { color: #ff5f5f; font-size: 28px; }
 
 /* --- Ust bar ------------------------------------------------------------- */
 
 #topbar {
   position: absolute;
-  top: calc(8px + var(--safe-t));
-  left: calc(10px + var(--safe-l));
+  top: calc(10px + var(--safe-t));
+  left: calc(12px + var(--safe-l));
   display: flex;
-  gap: 8px;
+  gap: 6px;
   pointer-events: none;
   z-index: 4;
 }
@@ -88,55 +75,84 @@ html, body {
 .stat {
   display: flex;
   flex-direction: column;
-  padding: 5px 10px;
-  border-radius: 9px;
-  background: rgba(6, 20, 32, 0.62);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(120, 180, 210, 0.14);
+  gap: 1px;
+  padding: 6px 11px;
+  border-radius: 10px;
+  background: rgba(4, 16, 27, 0.55);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(140, 195, 225, 0.13);
 }
 
 .stat-label {
-  font-size: 9px;
-  letter-spacing: 0.09em;
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--dim);
+  line-height: 1;
 }
 
 .stat-value {
   font-size: 16px;
   font-weight: 700;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
 
-.stat:first-child .stat-value { color: var(--gold); }
+.stat-money .stat-value { color: var(--gold); }
 
-#hint {
+/* --- Paneli acan dugme --------------------------------------------------- */
+
+#panel-open {
   position: absolute;
-  left: 50%;
-  bottom: calc(14px + var(--safe-b));
-  transform: translateX(-50%);
-  padding: 7px 14px;
-  border-radius: 999px;
-  background: rgba(6, 20, 32, 0.72);
-  border: 1px solid rgba(120, 180, 210, 0.16);
-  font-size: 12px;
-  color: #bcd6e6;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.35s;
-  z-index: 4;
+  top: calc(10px + var(--safe-t));
+  right: calc(12px + var(--safe-r));
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(140, 195, 225, 0.16);
+  background: rgba(4, 16, 27, 0.6);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  z-index: 6;
+  transition: opacity 0.2s, transform 0.2s;
 }
-#hint.is-visible { opacity: 1; }
+#panel-open.is-hidden { opacity: 0; pointer-events: none; transform: scale(0.9); }
+#panel-open:active { transform: scale(0.94); }
+
+/* Techizat cantasi. Sprite'i JS ayarlar - dagitim tabani orada biliniyor. */
+.panel-open-icon { display: block; }
+
+.panel-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 0 2px rgba(4, 16, 27, 0.85);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* --- Bildirimler --------------------------------------------------------- */
 
 #toasts {
   position: absolute;
-  top: calc(64px + var(--safe-t));
-  left: calc(10px + var(--safe-l));
+  top: calc(70px + var(--safe-t));
+  left: calc(12px + var(--safe-l));
   display: flex;
   flex-direction: column;
   gap: 5px;
   pointer-events: none;
   z-index: 4;
+  max-width: min(60vw, 320px);
 }
 
 .toast {
@@ -144,7 +160,8 @@ html, body {
   border-radius: 8px;
   font-size: 12px;
   font-weight: 600;
-  background: rgba(6, 20, 32, 0.85);
+  background: rgba(4, 16, 27, 0.82);
+  backdrop-filter: blur(8px);
   border-left: 3px solid var(--dim);
   transition: opacity 0.5s, transform 0.5s;
   animation: toast-in 0.28s ease-out;
@@ -160,37 +177,60 @@ html, body {
   to { opacity: 1; transform: none; }
 }
 
-/* --- Panel --------------------------------------------------------------- */
+/* --- Panel surgusu ------------------------------------------------------- */
+
+#scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  background: rgba(2, 9, 16, 0.35);
+  animation: fade-in 0.2s ease-out;
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 #panel {
-  flex: 0 0 300px;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(var(--panel-w), 86vw);
   display: flex;
   flex-direction: column;
   background: var(--panel-bg);
   border-left: 1px solid var(--line);
+  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.45);
   padding-right: var(--safe-r);
   padding-top: var(--safe-t);
   padding-bottom: var(--safe-b);
-  z-index: 6;
+  z-index: 9;
+  transition: transform 0.26s cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+#panel.is-closed {
+  transform: translateX(102%);
+  pointer-events: none;
 }
 
-#tabs {
+#panel-head {
   display: flex;
+  align-items: stretch;
   border-bottom: 1px solid var(--line);
   flex: 0 0 auto;
 }
 
+#tabs { display: flex; flex: 1 1 auto; min-width: 0; }
+
 .tab {
   flex: 1;
-  padding: 11px 4px;
+  padding: 13px 2px;
   border: 0;
   background: transparent;
   color: var(--dim);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   border-bottom: 2px solid transparent;
+  white-space: nowrap;
 }
 .tab.is-active {
   color: var(--text);
@@ -198,11 +238,24 @@ html, body {
   background: rgba(255, 204, 92, 0.05);
 }
 
+#panel-close {
+  flex: 0 0 auto;
+  width: 44px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--dim);
+  font-size: 15px;
+  cursor: pointer;
+  font-family: inherit;
+}
+#panel-close:active { color: var(--text); }
+
 .tab-body {
   display: none;
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 8px;
+  padding: 9px;
   -webkit-overflow-scrolling: touch;
 }
 .tab-body.is-active { display: block; }
@@ -212,34 +265,30 @@ html, body {
 .card {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   width: 100%;
-  margin-bottom: 6px;
-  padding: 8px 9px;
+  margin-bottom: 7px;
+  padding: 9px 10px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 11px;
   background: var(--panel-bg-2);
   color: var(--text);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, opacity 0.2s;
+  transition: border-color 0.15s, background 0.15s, opacity 0.2s, transform 0.1s;
 }
 .card.is-hidden { display: none; }
-.card:disabled { cursor: default; }
 .card.can-buy {
-  border-color: rgba(255, 204, 92, 0.5);
-  background: linear-gradient(180deg, #17364c, #12283a);
+  border-color: rgba(255, 204, 92, 0.55);
+  background: linear-gradient(180deg, #18384f, #12283a);
 }
 .card.can-buy .card-cost { color: var(--gold); }
-.card:not(.can-buy) { opacity: 0.62; }
+.card:not(.can-buy) { opacity: 0.6; }
 .card.is-maxed { opacity: 0.45; border-color: var(--green); }
-.card.can-buy:active { transform: scale(0.985); }
+.card.can-buy:active { transform: scale(0.98); }
 
-.card-icon {
-  flex: 0 0 auto;
-  display: block;
-}
+.card-icon { flex: 0 0 auto; display: block; }
 
 .card-main {
   flex: 1 1 auto;
@@ -249,19 +298,14 @@ html, body {
   gap: 2px;
 }
 
-.card-head {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.card-name { font-size: 13px; font-weight: 700; }
+.card-head { display: flex; align-items: baseline; gap: 6px; }
+.card-name { font-size: 13.5px; font-weight: 700; }
 .card-level { font-size: 10px; color: var(--dim); }
 .card-desc { font-size: 11px; color: #9db8ca; line-height: 1.3; }
 
 .card-cost {
   flex: 0 0 auto;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--dim);
@@ -271,15 +315,15 @@ html, body {
 
 .book-title {
   margin: 10px 2px 6px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--dim);
 }
 
 .book-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
   gap: 5px;
 }
 
@@ -288,15 +332,14 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 6px 3px;
+  padding: 7px 3px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 9px;
   background: #0a1826;
   text-align: center;
 }
 
 .book-icon {
-  /* Yakalanmamis turler siluet olarak gorunur. */
   filter: brightness(0) opacity(0.28);
   transition: filter 0.3s;
 }
@@ -325,7 +368,7 @@ html, body {
 .clean-bar {
   height: 7px;
   border-radius: 999px;
-  background: #0a1826;
+  background: #061320;
   border: 1px solid var(--line);
   overflow: hidden;
 }
@@ -343,10 +386,10 @@ html, body {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 7px 8px;
+  padding: 8px;
   margin-bottom: 4px;
-  border-radius: 8px;
-  background: #0a1826;
+  border-radius: 9px;
+  background: #061320;
   border: 1px solid var(--line);
   font-size: 11.5px;
   color: var(--dim);
@@ -362,22 +405,29 @@ html, body {
   text-align: right;
 }
 
-/* --- Dar / dikey ekran --------------------------------------------------- */
+/* --- Dikey ekran: surgu alttan gelir ------------------------------------- */
 
 @media (orientation: portrait), (max-width: 620px) {
-  #app { flex-direction: column; }
   #panel {
-    flex: 0 0 44vh;
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: min(62vh, 560px);
     border-left: 0;
     border-top: 1px solid var(--line);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.45);
     padding-right: 0;
+    padding-top: 0;
   }
-  #stage { flex: 1 1 auto; }
-  .book-grid { grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); }
+  #panel.is-closed { transform: translateY(102%); }
+  .book-grid { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
 }
 
-/* Cok kisa yatay ekranlarda panel biraz daralir. */
+/* Cok kisa yatay ekranlarda HUD biraz kuculur. */
 @media (orientation: landscape) and (max-height: 420px) {
-  #panel { flex-basis: 262px; }
   .stat-value { font-size: 14px; }
+  #panel-open { width: 42px; height: 42px; }
+  .panel-open-icon { width: 26px; height: 26px; }
 }

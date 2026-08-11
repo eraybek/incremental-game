@@ -2,7 +2,6 @@ import './style.css';
 import { RARITY_LABEL } from './game/content';
 import { fmt, fmtKg } from './game/format';
 import { Game, clamp } from './game/state';
-import type { Rod } from './game/types';
 import { SceneView } from './render/scene';
 import { Hud } from './ui/hud';
 
@@ -10,8 +9,14 @@ const canvas = document.getElementById('scene') as HTMLCanvasElement;
 const floats = document.getElementById('floats') as HTMLElement;
 const stage = document.getElementById('stage') as HTMLElement;
 
-/** Nisan durumu; sahne ve giris katmani arasinda paylasilir. */
-const aim = { active: false, x: 0, depth: 0, progress: 0, pointerId: -1 };
+/**
+ * Nisan durumu; sahne ve giris katmani arasinda paylasilir.
+ * `progress` nisan halkasinin gorunurlugunu surer - atisi tetiklemez.
+ */
+const aim = { active: false, x: 0, depth: 0, progress: 0, pointerId: -1, held: 0 };
+
+/** Bu sureden uzun basili tutmak "nisan aliyor" sayilir ve halka belirir. */
+const HOLD_TO_AIM = 0.16;
 
 const scene = new SceneView(canvas, floats);
 
@@ -53,6 +58,11 @@ const hud = new Hud(game);
  */
 function onPointerDown(ev: PointerEvent): void {
   if (ev.button !== undefined && ev.button !== 0) return;
+  // Yalnizca suya yapilan dokunus atis sayilir. HUD dugmeleri sahnenin
+  // cocugu oldugu icin, bu kontrol olmadan pointer capture click'i yutuyor.
+  if (ev.target !== canvas) return;
+  // Panel acikken sahne dokunuslari atisa donusmez.
+  if (hud.isPanelOpen) return;
   const biting = scene.nearestBiting(game, ev.clientX, ev.clientY);
   if (biting) {
     game.strike(biting);
@@ -65,6 +75,7 @@ function onPointerDown(ev: PointerEvent): void {
   aim.active = true;
   aim.pointerId = ev.pointerId;
   aim.progress = 0;
+  aim.held = 0;
   aim.x = point.x;
   aim.depth = clamp(point.depth, 0, game.maxDepth);
   stage.setPointerCapture?.(ev.pointerId);
@@ -77,17 +88,32 @@ function onPointerMove(ev: PointerEvent): void {
   aim.depth = clamp(point.depth, 0, game.maxDepth);
 }
 
+/**
+ * Atis parmak kalkinca yapilir. Kisa dokunus dogrudan atar; basili tutmak
+ * nisan halkasini acar ve parmak kaydirilarak hedef ayarlanir. Iki jest de
+ * ayni yerde bitiyor, boylece oyuncu ogrenecek bir sey olmadan oynayabiliyor.
+ */
 function onPointerUp(ev: PointerEvent): void {
   if (!aim.active || ev.pointerId !== aim.pointerId) return;
-  // Nisan dolmadan birakildiysa atis yapilmaz; halka soner.
+  const rod = game.castAt(aim.x, aim.depth);
   aim.active = false;
   aim.pointerId = -1;
+  aim.progress = 0;
+  if (rod) stage.releasePointerCapture?.(ev.pointerId);
+}
+
+/** Dokunus iptal edilirse (sistem jesti vb.) atis yapilmaz. */
+function onPointerCancel(ev: PointerEvent): void {
+  if (ev.pointerId !== aim.pointerId) return;
+  aim.active = false;
+  aim.pointerId = -1;
+  aim.progress = 0;
 }
 
 stage.addEventListener('pointerdown', onPointerDown);
 stage.addEventListener('pointermove', onPointerMove);
 stage.addEventListener('pointerup', onPointerUp);
-stage.addEventListener('pointercancel', onPointerUp);
+stage.addEventListener('pointercancel', onPointerCancel);
 // Uzun basma menusu ve kaydirma jesti oyunu bolmesin.
 stage.addEventListener('contextmenu', (e) => e.preventDefault());
 stage.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
@@ -101,7 +127,6 @@ document.addEventListener('visibilitychange', () => {
 // --- Dongu ----------------------------------------------------------------
 
 let last = performance.now();
-let castsSoFar = 0;
 
 function tick(now: number): void {
   // Sekme arka plandayken biriken zaman oyunu sicratmasin.
@@ -109,15 +134,9 @@ function tick(now: number): void {
   last = now;
 
   if (aim.active) {
-    aim.progress += dt / game.chargeTime;
-    if (aim.progress >= 1) {
-      // Nisan doldu: olta kendiliginden atilir.
-      const rod = game.castAt(aim.x, aim.depth);
-      aim.active = false;
-      aim.pointerId = -1;
-      aim.progress = 0;
-      if (rod) onCastFeedback(rod);
-    }
+    // Halka yalnizca gorsel geri bildirim: parmak bekledikce belirginlesir.
+    aim.held += dt;
+    aim.progress = clamp((aim.held - HOLD_TO_AIM) / 0.35, 0, 1);
   }
 
   game.update(dt);
@@ -126,19 +145,8 @@ function tick(now: number): void {
   requestAnimationFrame(tick);
 }
 
-/** Ilk atislarda kisa yonlendirme; oyuncu isi kaptiginda susar. */
-function onCastFeedback(_rod: Rod): void {
-  castsSoFar++;
-  if (castsSoFar === 1) {
-    hud.setHint('Şamandıra battığında dokun — çift para');
-  } else if (castsSoFar === 4) {
-    hud.setHint(null);
-  }
-}
-
 scene.init().then(() => {
   scene.resize();
-  hud.setHint('Suya basılı tut, nişan al');
   requestAnimationFrame((t) => {
     last = t;
     tick(t);
