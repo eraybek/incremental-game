@@ -1,0 +1,26 @@
+{
+  "name": "incremental-game",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Derin Sular - 2D bir balikcilik incremental oyunu",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eraybek/incremental-game.git"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1"
+  }
+}

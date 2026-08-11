@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.DS_Store
+*.local
+
+# Lisansi non-commercial olan ve yeniden dagitimi yasak olan asset paketleri.
+# Yerelde public/assets/ altinda tutulur, repoya girmez.
+public/assets/vendor/
