@@ -15,6 +15,23 @@ npm run build    # tip kontrolü + üretim derlemesi
 npm run preview  # derlenmiş sürümü çalıştır
 ```
 
+## Yayına alma
+
+`main` ve geliştirme dalına yapılan her push, `.github/workflows/deploy.yml`
+ile GitHub Pages'e dağıtılır. Dağıtımdan önce `npm run build` (tip kontrolü
+dahil) çalıştığı için bozuk bir sürüm yayınlanmaz.
+
+**Tek seferlik kurulum** — iş akışının çalışması için Pages'in repo
+ayarlarında açılmış olması gerekir. Actions token'ı bunu kendisi yapamaz:
+
+1. Settings → Pages
+2. Build and deployment → Source: **GitHub Actions**
+
+Repo private ise Pages ücretli bir plan gerektirir; ücretsiz planda repoyu
+public yapmak gerekir.
+
+Site adresi: `https://<kullanıcı>.github.io/incremental-game/`
+
 ## Nasıl oynanır
 
 - **Suya basılı tut** — nişan halkası dolar, parmağını kaydırarak hedefi
