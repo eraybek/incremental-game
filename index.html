@@ -9,16 +9,17 @@
     <meta name="theme-color" content="#04121f" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Derin Sular</title>
   </head>
   <body>
     <div id="app">
-      <canvas id="scene"></canvas>
+      <div id="stage">
+        <canvas id="scene"></canvas>
+        <div id="floats"></div>
 
-      <!-- Sahne uzerine binen bilgi katmani (tiklamayi gecirir) -->
-      <div id="overlay">
         <div id="topbar">
-          <div class="stat stat-money">
+          <div class="stat">
             <span class="stat-label">Para</span>
             <span class="stat-value" id="money">0</span>
           </div>
@@ -26,37 +27,26 @@
             <span class="stat-label">Gelir</span>
             <span class="stat-value" id="rate">0/sn</span>
           </div>
-          <div class="stat stat-depth">
-            <span class="stat-label">Derinlik</span>
+          <div class="stat">
+            <span class="stat-label" id="zone-label">Sığlık</span>
             <span class="stat-value" id="depth">0 m</span>
           </div>
         </div>
+
+        <div id="hint">Suya basılı tut, nişan al, bırak</div>
         <div id="toasts"></div>
-        <div id="catch-banner" class="hidden"></div>
       </div>
 
-      <!-- Yan panel: yukseltmeler -->
       <aside id="panel">
-        <div id="panel-tabs">
-          <button class="tab is-active" data-tab="upgrades">Yükseltmeler</button>
-          <button class="tab" data-tab="log">Kayıt</button>
+        <div id="tabs">
+          <button class="tab is-active" data-tab="gear" type="button">Teçhizat</button>
+          <button class="tab" data-tab="book" type="button">Defter</button>
+          <button class="tab" data-tab="clean" type="button">Temiz Deniz</button>
         </div>
-        <div id="tab-upgrades" class="tab-body"></div>
-        <div id="tab-log" class="tab-body hidden"></div>
+        <div class="tab-body is-active" id="tab-gear"></div>
+        <div class="tab-body" id="tab-book"></div>
+        <div class="tab-body" id="tab-clean"></div>
       </aside>
-
-      <button id="cast-btn" type="button">
-        <span class="cast-icon">🎣</span>
-        <span class="cast-label">OLTA AT</span>
-      </button>
-
-      <div id="offline" class="modal hidden">
-        <div class="modal-card">
-          <h2>Tekrar hoş geldin</h2>
-          <p id="offline-text"></p>
-          <button id="offline-ok" type="button">Devam</button>
-        </div>
-      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

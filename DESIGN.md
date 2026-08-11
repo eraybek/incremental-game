@@ -18,11 +18,11 @@ derine inebilen teçhizat alıyorsun.
 3. **Bekleyiş** — Rastgele bir süre (temelde 1.5–4 sn). Şamandıra suda
    sallanıyor. Bu ölü zaman değil: birden fazla oltan varsa diğerlerini
    atıyorsun.
-4. **Sonuç** — Şamandıra batıyor. İki ihtimal:
+4. **Sonuç** — Şamandıra batıyor. Üç ihtimal:
    - **Balık** → yukarı çekiliyor, koleksiyona işleniyor, otomatik satılıyor,
      para geliyor.
-   - **Boş / çöp** → hiçbir şey ya da plastik poşet (asset'te var). Bu, "Yem"
-     yükseltmesine varlık sebebi veriyor.
+   - **Çöp** → para etmiyor ama Temiz Deniz sayacını besliyor.
+   - **Boş** → hiçbir şey. Bu, "Yem" yükseltmesine varlık sebebi veriyor.
 5. **Harcama** — Parayla teçhizat. Daha derine inebiliyorsun. Başa dön.
 
 ## Derinlik = tek ilerleme ekseni
@@ -42,8 +42,8 @@ listesi var, bantlar birbirine biraz taşıyor ki geçiş sert olmasın.
 
 ## Koleksiyon
 
-Her tür ilk yakalandığında **Balıkçı Defteri**'ne giriyor: sprite'ı açılıyor,
-sayaç tutuluyor. Defter hem "bir tane daha" motoru hem de derinliğe inmenin
+Her tür ilk yakalandığında **Balıkçı Defteri**'ne giriyor: o ana kadar siluet
+olarak duran sprite'ı açılıyor, sayaç ve ağırlık rekoru tutuluyor. Defter hem "bir tane daha" motoru hem de derinliğe inmenin
 görünür kaydı. Tamamlanan bandın kalıcı bir bonus vermesi planlanıyor
 (örn. o bantta +%10 değer).
 
@@ -66,32 +66,72 @@ kazanca ulaşınca panelde beliriyor — ilk ekran kalabalık olmasın diye.
 ## Otomasyon
 
 "Otomatik Olta" alındığında oltalar son nişan aldığın noktaya kendiliğinden
-atılıyor. Manuel oynamanın anlamını korumak için manuel atışın küçük bir
-avantajı olması gerekiyor (bkz. açık sorular).
+atılıyor. Oltalar indekslerine göre yayılarak atılır ki şamandıralar üst üste
+binmesin. Manuel oynamanın anlamı, ısırma anındaki ×2 bonusu olarak korunuyor
+(bkz. "Isırma anı").
 
 ## Kapsam dışı (şimdilik)
 
 Prestij / reset katmanı, birden fazla harita bölgesi, tekne, hava durumu,
 gece-gündüz. Çekirdek oturduktan sonra konuşulacak.
 
+## Boyut varyasyonu
+
+Her tür bir temel ağırlık taşıyor; yakalanan birey bunun etrafında log-normal
+dağılıyor. Satış değeri ağırlıkla ölçekleniyor (`değer × (kg/temel)^1.2`), yani
+"4.2 kg Levrek" ile "0.9 kg Levrek" farklı para ediyor. Defter her türün **en
+büyüğünü** kaydediyor — bu, zaten yakaladığın bir türü tekrar yakalamaya
+sebep veriyor. Temelin 1.8 katını aşan birey "DEV" rozeti alıyor.
+
+## Çöp ve Temiz Deniz
+
+Her atış üç sonuçtan birini veriyor: **balık**, **çöp** ya da **boş**. Çöp
+(plastik poşet, konserve, eski çizme, şişe) para etmiyor ama **Temiz Deniz**
+sayacını besliyor. Sayaç eşiklere ulaştıkça kalıcı ödüller açılıyor:
+
+| Eşik | Ödül |
+|---|---|
+| 10 | +%10 satış değeri |
+| 40 | Isırma şansı +%8 |
+| 120 | Bekleme süresi −%15 |
+| 350 | Ekstra olta yuvası |
+| 900 | +%50 satış değeri |
+
+Böylece çöp yakalamak "kayıp tur" değil, ikinci bir ilerleme ekseni oluyor.
+Nadiren çöp yerine **hazine** (sandık, madeni para) çıkıyor — yüksek değerli
+sürpriz.
+
+"Yem" yükseltmesi hem boş dönüşü hem çöp oranını düşürüyor.
+
+## Isırma anı — karar
+
+Balık **kendiliğinden çekiliyor**. Oyuncunun hiçbir şey yapmaması durumunda
+balık kaybolmuyor; kaçırmanın cezası yok. Ama ısırma anında ~0.6 saniyelik bir
+pencere açılıyor ve o şamandıraya dokunursan yakalanan ×2 ediyor.
+
+Bu, "birden fazla oltaya yetişmek zor olur" endişesini çözüyor: yetişmek zorunda
+değilsin. Yetiştiğin her olta bonus, yetişemediğin hiçbir olta kayıp değil.
+Otomasyon açıldıktan sonra da manuel oynamanın anlamı bu bonus oluyor —
+otomasyon rahatlık satıyor, elle oynamak performans satıyor.
+
+Dokunuş çakışması: dokunduğun noktanın yakınında ısırmış bir şamandıra varsa o
+dokunuş "çekme" sayılıyor, yoksa yeni bir nişan başlatıyor.
+
+## Çevrimdışı kazanç
+
+Şimdilik yok. Kayıt dosyasında zaman damgası tutuluyor ki sonradan eklemek
+kolay olsun.
+
 ---
 
-## Açık sorular
+## Asset stratejisi
 
-1. **Boyut varyasyonu** — Aynı türün farklı ağırlıklarda çıkması (ör. "4.2 kg
-   Levrek", değeri ağırlıkla çarpılıyor, defter en büyüğünü kaydediyor).
-   Çok ucuz ama koleksiyona ciddi derinlik katıyor. Var mı, yok mu?
-2. **Çöp** — Plastik poşet sadece boş dönüş mü, yoksa satılabilir mi / bir
-   "temiz deniz" sayacı mı besliyor?
-3. **Manuel avantajı** — Otomasyon açıldıktan sonra elle atmak neden değerli
-   olsun? (öneri: elle atışta ısırma anında dokunursan ×2 bonus)
-4. **Isırma anı** — Şamandıra battığında oyuncunun tepki vermesi gerekiyor mu,
-   yoksa balık kendiliğinden mi çekiliyor? Senin anlattığın akışta
-   kendiliğinden anlıyorum; onaylar mısın?
-5. **Çevrimdışı kazanç** — Kapalıyken üretim olsun mu? (öneri: sınırlı, tavanlı)
+Oyun mantığı sprite'ları tanımıyor; her tür yalnızca bir `{sheet, i}` atlas
+referansı taşıyor ve bunu render katmanı çözüyor. Atlas değişirse yalnızca
+`content.ts` içindeki indeksler değişir.
 
-## Asset lisansı
+Kullanılan paket: `fishing_icon_pack_2` — 144 deniz canlısı, 20 obje, 36
+teçhizat. Proje sahibi kullanımını onayladı.
 
-`fishing_free` paketi **non-commercial** ve yeniden dağıtımı yasak. Prototipte
-kullanılabilir; ticarileşme ihtimalinde sprite'lar değiştirilmeli ve pakette
-repoya commit'lenmemeli.
+Elenen paket: `fishing_free` — non-commercial ve yeniden dağıtımı yasak
+olduğu için kullanılmadı.

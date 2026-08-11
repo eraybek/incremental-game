@@ -1,74 +1,113 @@
+import type { SpriteRef } from '../render/atlas';
+
 export type UpgradeId =
-  | 'reel'
-  | 'rods'
   | 'line'
   | 'bait'
+  | 'reel'
+  | 'float'
+  | 'arm'
   | 'market'
-  | 'autocast'
-  | 'net';
+  | 'rods'
+  | 'autocast';
+
+/** Yakalanabilen her seyin ortak govdesi. */
+export interface Species {
+  id: string;
+  name: string;
+  /** Atlas hucresi; render katmani bunu cozer. */
+  sprite: SpriteRef;
+  /** Ekran uzayindaki gorsel buyukluk carpani. */
+  size: number;
+}
+
+export interface Fish extends Species {
+  kind: 'fish';
+  /** Ortalama agirlik (kg). Yakalanan birey bunun etrafinda dagilir. */
+  baseWeight: number;
+  /** baseWeight agirliginda ettigi para. */
+  value: number;
+  minDepth: number;
+  maxDepth: number;
+  /** Kendi derinlik bandindaki gorulme agirligi; dusuk = nadir. */
+  weight: number;
+  rarity: Rarity;
+}
+
+export interface Junk extends Species {
+  kind: 'junk';
+  /** Hazine ise para eder ve Temiz Deniz sayacini beslemez. */
+  value: number;
+  /** Cikma agirligi. */
+  weight: number;
+  treasure: boolean;
+}
+
+export type Catchable = Fish | Junk;
+
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface Upgrade {
   id: UpgradeId;
   name: string;
-  icon: string;
-  /** Tek satirlik aciklama; {v} mevcut degeri, {n} bir sonraki degeri ile degistirilir. */
+  sprite: SpriteRef;
   desc: string;
   baseCost: number;
-  /** Her seviyede maliyet bu carpanla buyur. */
   growth: number;
   maxLevel: number;
-  /** Seviye -> oyuncuya gosterilecek deger metni. */
+  /** Seviyedeki degerin oyuncuya gosterilen metni. */
   valueAt: (level: number) => string;
-  /** Bu yukseltme kac para kazanildiktan sonra gorunur olsun. */
+  /** Bu toplam kazanca ulasilinca panelde belirir. */
   revealAt: number;
 }
 
-export interface Fish {
-  id: string;
-  name: string;
-  icon: string;
-  /** Temel satis degeri. */
-  value: number;
-  /** Bu balik en az bu derinlikte bulunur (metre). */
-  minDepth: number;
-  /** Bu derinligin otesinde artik gorunmez. */
-  maxDepth: number;
-  /** Kendi derinlik bandi icindeki gorulme agirligi; dusuk = nadir. */
-  weight: number;
-  /** Govde rengi (hex). */
-  color: number;
-  /** Gorsel boyut carpani. */
-  size: number;
-  /** Nadirlik sinifi; sadece sunum icin. */
-  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
-}
-
-export type RodPhase = 'idle' | 'descending' | 'hooking' | 'ascending';
+export type RodPhase = 'idle' | 'flying' | 'sinking' | 'waiting' | 'bite' | 'reeling';
 
 export interface Rod {
-  /** Oltanin kendi indeksi; yatay konumunu belirler. */
   index: number;
   phase: RodPhase;
-  /** Kancanin su anki derinligi (metre, pozitif = asagi). */
-  depth: number;
-  /** Bu atisin hedef derinligi. */
+  /** Suyun yuzeyindeki yatay hedef (-1..1, ekranin yarim genisligi olceginde). */
+  x: number;
+  /** Kancanin hedef derinligi (metre). */
   targetDepth: number;
-  /** 'hooking' fazinda kalan sure (saniye). */
-  hookTimer: number;
-  /** Yakalanan balik, yukari tasinirken burada durur. */
-  catchFish: Fish | null;
-  /** Oyuncu tam zamaninda dokunursa bonus. */
+  /** Kancanin su anki derinligi (metre). */
+  depth: number;
+  /** Faza gore anlami degisen zamanlayici (saniye). */
+  timer: number;
+  /** 'flying' fazinin toplam suresi; yayin ilerlemesini hesaplamak icin. */
+  flightTime: number;
+  /** Bu atisin sonucu; isirma aninda belirlenir. */
+  hooked: Hooked | null;
+  /** Oyuncu isirma penceresinde dokundu mu. */
   perfect: boolean;
   /** 'idle' fazinda otomatik atisa kalan sure. */
   autoTimer: number;
+}
+
+/** Bir atisin somut sonucu. */
+export interface Hooked {
+  species: Catchable;
+  /** Baliksa yakalanan bireyin agirligi (kg); coplerde 0. */
+  kg: number;
+  /** Temel carpanlar uygulanmis, bonus oncesi para. */
+  value: number;
+  /** Temel agirligin 1.8 katini asan balik. */
+  huge: boolean;
+}
+
+/** Balikci Defteri'ndeki bir tur kaydi. */
+export interface LogEntry {
+  count: number;
+  /** Yakalanan en buyuk birey (kg). */
+  best: number;
 }
 
 export interface SaveData {
   v: number;
   money: number;
   totalEarned: number;
-  upgrades: Partial<Record<UpgradeId, number>>;
-  caught: Record<string, number>;
   deepest: number;
+  cleanliness: number;
+  upgrades: Partial<Record<UpgradeId, number>>;
+  log: Record<string, LogEntry>;
   savedAt: number;
 }
