@@ -17,18 +17,14 @@ npm run preview  # derlenmiş sürümü çalıştır
 
 ## Yayına alma
 
-`main` ve geliştirme dalına yapılan her push, `.github/workflows/deploy.yml`
-ile GitHub Pages'e dağıtılır. Dağıtımdan önce `npm run build` (tip kontrolü
-dahil) çalıştığı için bozuk bir sürüm yayınlanmaz.
+`main`'e yapılan her push, `.github/workflows/deploy.yml` ile GitHub Pages'e
+dağıtılır. Dağıtımdan önce `npm run build` (tip kontrolü dahil) çalıştığı için
+bozuk bir sürüm yayınlanmaz.
 
-**Tek seferlik kurulum** — iş akışının çalışması için Pages'in repo
-ayarlarında açılmış olması gerekir. Actions token'ı bunu kendisi yapamaz:
-
-1. Settings → Pages
-2. Build and deployment → Source: **GitHub Actions**
-
-Repo private ise Pages ücretli bir plan gerektirir; ücretsiz planda repoyu
-public yapmak gerekir.
+Yalnızca `main` dağıtılır: `github-pages` ortamı varsayılan olarak sadece
+varsayılan daldan dağıtıma izin verir. Başka bir daldan da yayınlamak
+istersen Settings → Environments → github-pages → Deployment branches
+ayarını gevşetmen gerekir.
 
 Site adresi: `https://<kullanıcı>.github.io/incremental-game/`
 

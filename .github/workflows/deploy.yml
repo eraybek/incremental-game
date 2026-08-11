@@ -1,12 +1,14 @@
 name: Deploy
 
-# Oyunu GitHub Pages'e yayinlar. Gelistirme dalina yapilan push'lar da
-# yayinlanir ki degisiklik dogrudan telefonda denenebilsin.
+# Oyunu GitHub Pages'e yayinlar.
+#
+# Yalnizca main: github-pages ortami varsayilan olarak sadece varsayilan
+# daldan dagitima izin veriyor, diger dallardan gelen dagitim adim bile
+# calismadan reddediliyor.
 on:
   push:
     branches:
       - main
-      - claude/threejs-incremental-game-26uc9s
   workflow_dispatch:
 
 permissions:
