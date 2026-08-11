@@ -5,10 +5,16 @@ import * as THREE from 'three';
  * Oyun icerigi sadece {sheet, i} ciftini bilir; boylece atlas degistiginde
  * oyun mantigi degismez.
  */
+/**
+ * Varlik yollari dagitim tabanina goredir; oyun hem kokte hem de GitHub
+ * Pages'in /<repo>/ alt yolunda ayni sekilde calisir.
+ */
+const BASE = import.meta.env.BASE_URL;
+
 export const SHEETS = {
-  fish: { url: '/assets/fishes.png', cell: 32, cols: 12, rows: 12 },
-  obj: { url: '/assets/objects.png', cell: 32, cols: 5, rows: 4 },
-  gear: { url: '/assets/fishing_gear.png', cell: 32, cols: 6, rows: 6 },
+  fish: { url: `${BASE}assets/fishes.png`, cell: 32, cols: 12, rows: 12 },
+  obj: { url: `${BASE}assets/objects.png`, cell: 32, cols: 5, rows: 4 },
+  gear: { url: `${BASE}assets/fishing_gear.png`, cell: 32, cols: 6, rows: 6 },
 } as const;
 
 export type SheetName = keyof typeof SHEETS;

@@ -1,0 +1,52 @@
+name: Deploy
+
+# Oyunu GitHub Pages'e yayinlar. Gelistirme dalina yapilan push'lar da
+# yayinlanir ki degisiklik dogrudan telefonda denenebilsin.
+on:
+  push:
+    branches:
+      - main
+      - claude/threejs-incremental-game-26uc9s
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Ayni anda tek dagitim; siradaki push beklesin, calisan iptal edilmesin.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Tip kontrolu de calissin; bozuk bir surum yayinlanmasin.
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
