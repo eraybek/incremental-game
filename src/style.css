@@ -170,9 +170,9 @@ html, body {
 
 .danger-btn {
   border: 2px solid #7a2530;
-  border-radius: 12px;
-  padding: 11px 20px;
-  font-size: 14px;
+  border-radius: 10px;
+  padding: 9px 18px;
+  font-size: 13.5px;
   font-weight: 800;
   color: #ffc9cb;
   background: rgba(122, 37, 48, 0.35);
@@ -351,10 +351,17 @@ html, body {
   border: 2px solid var(--panel-border);
   border-radius: 14px;
   width: min(680px, 100%);
-  max-height: calc(100dvh - 24px);
+  max-height: calc(100dvh - 20px);
   overflow-y: auto;
-  padding: 14px;
+  padding: 12px;
 }
+
+/* The report must never need scrolling to reach its buttons: the pile shrinks
+   and the breakdown collapses instead. */
+.sheet.report { display: flex; flex-direction: column; overflow: hidden; }
+.sheet.report .result-top { flex-shrink: 0; }
+.sheet.report .result-details { flex: 1; min-height: 0; overflow-y: auto; }
+.sheet.report .btn-row.wide { flex-shrink: 0; }
 
 .sheet.narrow { width: min(420px, 100%); }
 
@@ -362,10 +369,11 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
-.sheet-head h2 { margin: 0; font-size: 18px; flex: 1; }
+.sheet-head h2 { margin: 0; font-size: 17px; flex: 1; }
 
 .coin-badge {
   display: flex;
@@ -397,7 +405,7 @@ html, body {
 /* The haul rendered as a heap: reads as loot, not as a list. */
 .result-pile {
   position: relative;
-  min-height: 150px;
+  min-height: 128px;
   border-radius: 12px;
   background: radial-gradient(circle at 50% 55%, rgba(125, 211, 252, 0.09), transparent 68%);
 }
@@ -549,21 +557,32 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: calc(env(safe-area-inset-top, 0px) + 9px) 12px 9px;
+  padding: calc(env(safe-area-inset-top, 0px) + 6px) 12px 6px;
   border-bottom: 1px solid var(--panel-border);
   background: var(--panel-2);
 }
 
-.hub-head h2 { flex: 1; margin: 0; font-size: 17px; }
+.hub-head h2 { flex: 1; margin: 0; font-size: 16px; }
 
 .hub-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  padding: 12px;
+  display: flex;
+  overflow: hidden;
 }
 
-.hub-panel { display: flex; flex-direction: column; gap: 10px; }
+/* Each panel decides what scrolls inside it, so filters and detail bars can be
+   pinned while only the list between them moves. */
+.hub-panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scroll-panel { overflow-y: auto; padding: 10px; }
 
 .hub-tabs {
   flex-shrink: 0;
@@ -578,18 +597,18 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   border: none;
   background: none;
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
-  padding: 8px 4px;
+  padding: 5px 4px;
   cursor: pointer;
   border-top: 3px solid transparent;
 }
 
-.hub-tab img { width: 22px; height: 22px; image-rendering: pixelated; opacity: 0.55; }
+.hub-tab img { width: 19px; height: 19px; image-rendering: pixelated; opacity: 0.55; }
 .hub-tab.active { color: var(--text); border-top-color: var(--accent); background: rgba(255, 176, 32, 0.07); }
 .hub-tab.active img { opacity: 1; }
 
@@ -605,8 +624,8 @@ html, body {
 .coin-badge img { width: 19px; height: 19px; image-rendering: pixelated; }
 
 .section-title {
-  font-size: 11.5px;
-  letter-spacing: 1.2px;
+  font-size: 10.5px;
+  letter-spacing: 1.1px;
   text-transform: uppercase;
   color: var(--text-dim);
   font-weight: 800;
@@ -616,18 +635,18 @@ html, body {
 
 .upgrade-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 7px;
 }
 
 .upgrade-card {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 5px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  padding: 10px;
+  border-radius: 11px;
+  padding: 8px 9px;
 }
 
 /* Affordable cards are called out; maxed ones recede. */
@@ -637,8 +656,8 @@ html, body {
 .upgrade-head { display: flex; align-items: center; gap: 9px; }
 
 .upgrade-icon {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
   border-radius: 10px;
   border: 1px solid var(--panel-border);
@@ -650,43 +669,60 @@ html, body {
 
 .upgrade-icon img { width: 72%; height: 72%; object-fit: contain; image-rendering: pixelated; }
 
-.upgrade-titles { min-width: 0; }
-.upgrade-name { font-size: 14px; font-weight: 800; }
-.upgrade-level { font-size: 11px; color: var(--text-dim); font-weight: 700; }
-.upgrade-desc { font-size: 11.5px; color: var(--text-dim); line-height: 1.35; }
+.upgrade-titles { min-width: 0; flex: 1; display: flex; align-items: baseline; gap: 7px; }
+.upgrade-name { font-size: 13.5px; font-weight: 800; }
+.upgrade-level { font-size: 10.5px; color: var(--text-dim); font-weight: 700; margin-left: auto; white-space: nowrap; }
+
+/* One line only: the effect row below carries the decision, the description is
+   just orientation for a first-time reader. */
+.upgrade-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.upgrade-foot { display: flex; align-items: center; gap: 8px; }
+.upgrade-foot .upgrade-effect { flex: 1; min-width: 0; }
+.upgrade-foot .buy-btn { flex-shrink: 0; min-width: 82px; }
 
 /* The number that decides the purchase: what this level buys you. */
 .upgrade-effect {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 13px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 800;
   background: rgba(0, 0, 0, 0.28);
-  border-radius: 8px;
-  padding: 5px 9px;
+  border-radius: 7px;
+  padding: 5px 8px;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .effect-now { color: var(--text-dim); }
 .effect-arrow { color: var(--text-dim); }
 .effect-next { color: var(--green); }
+.effect-unit { color: var(--text-dim); font-weight: 700; }
 
-.upgrade-bar { height: 4px; background: #060a19; border-radius: 3px; overflow: hidden; }
+.upgrade-bar { height: 3px; background: #060a19; border-radius: 3px; overflow: hidden; }
 .upgrade-bar > div { height: 100%; background: linear-gradient(90deg, #4c7dff, #7dd3fc); }
 
 .buy-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   background: var(--green);
   border: none;
-  border-radius: 9px;
-  padding: 9px;
+  border-radius: 8px;
+  padding: 7px 10px;
   font-weight: 900;
   color: #06210c;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 .buy-btn img { width: 16px; height: 16px; image-rendering: pixelated; }
@@ -694,15 +730,19 @@ html, body {
 .buy-btn:disabled img { opacity: 0.4; }
 .buy-btn:not(:disabled):active { transform: translateY(1px); }
 
-.milestone-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px; }
-.milestone-row { display: flex; align-items: center; gap: 8px; opacity: 0.5; padding: 5px 8px; }
+.milestone-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px; }
+.milestone-row { display: flex; align-items: center; gap: 8px; opacity: 0.5; padding: 3px 8px; }
 .milestone-row img { width: 18px; height: 18px; image-rendering: pixelated; flex-shrink: 0; }
 .milestone-name { font-weight: 700; font-size: 12px; }
 .milestone-desc { font-size: 10.5px; color: var(--text-dim); }
 
 /* --------------------------------------------------------------- collection */
 
-.filter-row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.collection-panel { padding: 8px 10px; gap: 6px; }
+.collection-head { flex-shrink: 0; display: flex; flex-direction: column; gap: 5px; }
+.collection-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+.filter-row { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .filter-row::-webkit-scrollbar { display: none; }
 
 .filter-chip {
@@ -711,22 +751,24 @@ html, body {
   background: var(--panel);
   color: var(--text-dim);
   border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 12px;
+  padding: 4px 12px;
+  font-size: 11.5px;
   font-weight: 800;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .filter-chip.active { background: var(--accent); border-color: var(--accent); color: #221800; }
 .filter-chip.locked { opacity: 0.4; cursor: not-allowed; }
 .filter-chip.locked::after { content: ' 🔒'; }
 
-.collection-count { font-size: 12px; color: var(--text-dim); font-weight: 800; }
+.collection-count { font-size: 11px; color: var(--text-dim); font-weight: 800; }
 
 .collection-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 6px;
+  padding-bottom: 2px;
 }
 
 .collection-slot {
@@ -758,21 +800,22 @@ html, body {
 
 /* Tapping a slot answers "is this worth chasing?" without leaving the grid. */
 .collection-detail {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  padding: 10px 12px;
-  min-height: 66px;
+  border-radius: 11px;
+  padding: 7px 10px;
+  min-height: 52px;
 }
 
 .detail-hint { font-size: 12px; color: var(--text-dim); }
 
 .detail-icon {
-  width: 46px;
-  height: 46px;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
   border: 2px solid var(--panel-border);
   border-radius: 10px;
@@ -785,8 +828,8 @@ html, body {
 .detail-icon.locked img { filter: brightness(0) saturate(0); opacity: 0.22; }
 
 .detail-info { flex: 1; min-width: 0; }
-.detail-name { font-size: 15px; font-weight: 800; }
-.detail-rarity { font-size: 11.5px; font-weight: 800; }
+.detail-name { font-size: 14px; font-weight: 800; }
+.detail-rarity { font-size: 11px; font-weight: 800; }
 .detail-rarity.r-common { color: #9aa0b4; }
 .detail-rarity.r-uncommon { color: #4cd964; }
 .detail-rarity.r-rare { color: #4c9aff; }
@@ -794,18 +837,18 @@ html, body {
 .detail-stats { display: flex; gap: 16px; }
 .detail-stat { display: flex; flex-direction: column; align-items: flex-end; }
 .detail-stat span { font-size: 10.5px; color: var(--text-dim); font-weight: 700; }
-.detail-stat strong { font-size: 17px; font-weight: 900; }
+.detail-stat strong { font-size: 15px; font-weight: 900; }
 
 /* ----------------------------------------------------------------- settings */
 
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 11px;
+  padding: 9px 10px;
 }
 
 .toggle-row {
@@ -816,18 +859,18 @@ html, body {
   width: 100%;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 9px;
+  padding: 7px 11px;
   color: var(--text);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .switch {
   flex-shrink: 0;
-  width: 42px;
-  height: 24px;
+  width: 38px;
+  height: 21px;
   border-radius: 999px;
   background: #333c5e;
   position: relative;
@@ -839,15 +882,15 @@ html, body {
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   background: #8b93b8;
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
 .switch.on { background: rgba(76, 217, 100, 0.35); }
-.switch.on::after { transform: translateX(18px); background: var(--green); }
+.switch.on::after { transform: translateX(17px); background: var(--green); }
 
 .slider-row { display: flex; align-items: center; gap: 10px; padding: 2px 4px; }
 .slider-label { font-size: 13px; font-weight: 700; flex-shrink: 0; }
@@ -885,7 +928,40 @@ html, body {
   cursor: pointer;
 }
 
-.settings-note { font-size: 11.5px; color: var(--text-dim); line-height: 1.45; }
+.settings-actions { display: flex; gap: 8px; }
+.settings-actions > * { flex: 1; }
+
+.locked-block > summary {
+  cursor: pointer;
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 800;
+  padding: 6px 2px;
+}
+
+.locked-block[open] > summary { color: var(--text); }
+
+.settings-note { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+
+/* Short viewports (landscape phones) get one more notch of tightening. */
+@media (max-height: 460px) {
+  .result-pile { min-height: 92px; }
+  .pile-item { width: 24px; height: 24px; }
+  .summary-row { padding: 4px 9px; }
+  .summary-row.accent .summary-value { font-size: 20px; }
+  .result-top { gap: 10px; }
+  .btn-row.wide { margin-top: 8px; }
+  .hub-head { padding-top: calc(env(safe-area-inset-top, 0px) + 4px); padding-bottom: 4px; }
+  .hub-head h2 { font-size: 15px; }
+  .hub-tab { padding: 3px 4px; font-size: 10px; }
+  .hub-tab img { width: 17px; height: 17px; }
+  .upgrade-desc { display: none; }
+  .settings-section { padding: 7px 9px; gap: 5px; }
+  .toggle-row { padding: 6px 10px; }
+  .big-btn { padding: 9px 18px; font-size: 14px; }
+}
 
 /* ------------------------------------------------- portrait rotate prompt -- */
 

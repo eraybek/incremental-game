@@ -77,7 +77,8 @@ export const RARITY_COLOR: Record<Rarity, string> = {
 export const UPGRADES: UpgradeDef[] = [
   {
     id: 'power',
-    valueAt: (l) => `${(3 + l * 0.8).toFixed(1)} güç`,
+    valueAt: (l) => `${(3 + l * 0.8).toFixed(1)}`,
+    unit: 'güç',
     name: 'Magnet Power',
     description: 'Objeleri daha hızlı çeker, daha ağırlarını kaldırır.',
     icon: `${A}/hud/icon_magnet_small.png`,
@@ -87,7 +88,8 @@ export const UPGRADES: UpgradeDef[] = [
   },
   {
     id: 'range',
-    valueAt: (l) => `×${(1 + l * 0.1).toFixed(2)} alan`,
+    valueAt: (l) => `×${(1 + l * 0.1).toFixed(2)}`,
+    unit: 'alan',
     name: 'Attraction Range',
     description: 'Mıknatısın çekim alanını genişletir.',
     icon: `${A}/hud/icon_target.png`,
@@ -97,7 +99,8 @@ export const UPGRADES: UpgradeDef[] = [
   },
   {
     id: 'launch',
-    valueAt: (l) => `×${(1 + l * 0.11).toFixed(2)} mesafe`,
+    valueAt: (l) => `×${(1 + l * 0.11).toFixed(2)}`,
+    unit: 'mesafe',
     name: 'Launch Distance',
     description: 'Maksimum atış mesafesini artırır.',
     icon: `${A}/buttons/btn_r2c2.png`,
@@ -107,7 +110,8 @@ export const UPGRADES: UpgradeDef[] = [
   },
   {
     id: 'loadEff',
-    valueAt: (l) => `-%${Math.round(Math.min(0.85, l * 0.07) * 100)} ceza`,
+    valueAt: (l) => `-%${Math.round(Math.min(0.85, l * 0.07) * 100)}`,
+    unit: 'ceza',
     name: 'Load Efficiency',
     description: 'Taşınan yükün atış mesafesine olan cezasını azaltır.',
     icon: `${A}/buttons/btn_r2c4.png`,
@@ -117,7 +121,8 @@ export const UPGRADES: UpgradeDef[] = [
   },
   {
     id: 'extraTime',
-    valueAt: (l) => `${BASE_RUN_DURATION + l * SECONDS_PER_TIME_LEVEL} sn`,
+    valueAt: (l) => `${BASE_RUN_DURATION + l * SECONDS_PER_TIME_LEVEL}`,
+    unit: 'saniye',
     name: 'Vardiya Süresi',
     description: 'Her seviye vardiyaya +2 saniye ekler.',
     icon: `${A}/hud/icon_hourglass.png`,
@@ -127,7 +132,8 @@ export const UPGRADES: UpgradeDef[] = [
   },
   {
     id: 'extraShot',
-    valueAt: (l) => `${BASE_SHOTS + l} atış`,
+    valueAt: (l) => `${BASE_SHOTS + l}`,
+    unit: 'atış',
     name: 'Ekstra Atış',
     description: 'Her seviye vardiya başına +1 atış verir.',
     icon: `${A}/hud/icon_lightning.png`,
@@ -137,7 +143,8 @@ export const UPGRADES: UpgradeDef[] = [
   },
   {
     id: 'lootValue',
-    valueAt: (l) => `×${(1 + l * 0.12).toFixed(2)} değer`,
+    valueAt: (l) => `×${(1 + l * 0.12).toFixed(2)}`,
+    unit: 'değer',
     name: 'Loot Value',
     description: 'Toplanan objelerin para değerini artırır.',
     icon: `${A}/hud/icon_coin.png`,
@@ -147,7 +154,8 @@ export const UPGRADES: UpgradeDef[] = [
   },
   {
     id: 'lootQuality',
-    valueAt: (l) => `%${(1 + l).toFixed(0)} nadir`,
+    valueAt: (l) => `%${(1 + l).toFixed(0)}`,
+    unit: 'nadir',
     name: 'Loot Quality',
     description: 'Daha nadir objelerin çıkma ihtimalini artırır.',
     icon: `${A}/rarity/gem_rare.png`,

@@ -29,8 +29,11 @@ export interface UpgradeDef {
   name: string;
   description: string;
   icon: string;
-  /** Human-readable effect at a given level, so a card can show current → next. */
+  /** Bare effect value at a level, so a card can show `current → next unit`
+   *  without repeating the unit twice and overflowing a narrow card. */
   valueAt: (level: number) => string;
+  /** Unit shown once, after the arrow. */
+  unit: string;
   baseCost: number;
   costGrowth: number;
   maxLevel: number;

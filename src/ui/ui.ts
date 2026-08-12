@@ -496,10 +496,9 @@ export class Ui {
   // --------------------------------------------------------------- upgrades
 
   private buildUpgradesPanel(): HTMLElement {
-    const panel = el('div', 'hub-panel');
+    const panel = el('div', 'hub-panel scroll-panel');
     this.upgradeList = el('div', 'upgrade-list');
 
-    const milestoneTitle = el('div', 'section-title', 'Kilitli — ileride skill tree ile açılacak');
     const milestoneList = el('div', 'milestone-list');
     for (const m of MILESTONES) {
       const row = el('div', 'milestone-row');
@@ -509,7 +508,13 @@ export class Ui {
       milestoneList.appendChild(row);
     }
 
-    panel.append(this.upgradeList, milestoneTitle, milestoneList);
+    const locked = el('details', 'locked-block');
+    locked.append(
+      el('summary', undefined, 'Kilitli özellikler — ileride skill tree ile açılacak'),
+      milestoneList,
+    );
+
+    panel.append(this.upgradeList, locked);
     return panel;
   }
 
@@ -542,11 +547,7 @@ export class Ui {
       if (!maxed) {
         effect.append(el('span', 'effect-arrow', '→'), el('span', 'effect-next', def.valueAt(level + 1)));
       }
-
-      const bar = el('div', 'upgrade-bar');
-      const fill = el('div');
-      fill.style.width = `${Math.min(100, (level / def.maxLevel) * 100)}%`;
-      bar.appendChild(fill);
+      effect.append(el('span', 'effect-unit', def.unit));
 
       const buy = el('button', 'buy-btn');
       buy.disabled = maxed || !affordable;
@@ -564,7 +565,16 @@ export class Ui {
         }
       });
 
-      card.append(head, el('div', 'upgrade-desc', def.description), effect, bar, buy);
+      const foot = el('div', 'upgrade-foot');
+      foot.append(effect, buy);
+
+      // Level progress reads as a hairline under the header rather than its own row.
+      const bar = el('div', 'upgrade-bar');
+      const fill = el('div');
+      fill.style.width = `${Math.min(100, (level / def.maxLevel) * 100)}%`;
+      bar.appendChild(fill);
+
+      card.append(head, bar, el('div', 'upgrade-desc', def.description), foot);
       this.upgradeList.appendChild(card);
     }
   }
@@ -572,7 +582,7 @@ export class Ui {
   // ------------------------------------------------------------- collection
 
   private buildCollectionPanel(): HTMLElement {
-    const panel = el('div', 'hub-panel');
+    const panel = el('div', 'hub-panel collection-panel');
 
     this.collectionFilters = el('div', 'filter-row');
     for (const f of FILTERS) {
@@ -593,7 +603,14 @@ export class Ui {
     this.collectionGrid = el('div', 'collection-grid');
     this.collectionDetail = el('div', 'collection-detail');
 
-    panel.append(this.collectionFilters, this.collectionCount, this.collectionGrid, this.collectionDetail);
+    // Filters and the detail bar stay put; only the grid between them scrolls,
+    // so the controls never scroll out of reach on a short screen.
+    const head = el('div', 'collection-head');
+    head.append(this.collectionFilters, this.collectionCount);
+    const scroll = el('div', 'collection-scroll');
+    scroll.appendChild(this.collectionGrid);
+
+    panel.append(head, scroll, this.collectionDetail);
     return panel;
   }
 
@@ -672,7 +689,7 @@ export class Ui {
   // --------------------------------------------------------------- settings
 
   private buildSettingsPanel(): HTMLElement {
-    const panel = el('div', 'hub-panel');
+    const panel = el('div', 'hub-panel scroll-panel');
 
     // --- sound
     const sound = this.settingsSection('Ses');
@@ -722,10 +739,12 @@ export class Ui {
         }),
       );
     }
-    device.append(
+    const deviceActions = el('div', 'settings-actions');
+    deviceActions.append(
       button('Ana Menüye Dön', 'big-btn alt', () => this.onBackToMenu?.()),
       button('İlerlemeyi Sıfırla', 'danger-btn', () => this.confirmReset()),
     );
+    device.appendChild(deviceActions);
 
     const note = el(
       'div',
