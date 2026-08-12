@@ -2,8 +2,6 @@ import type { Vec2 } from './types';
 
 export interface CarriedItem {
   itemId: string;
-  sprite: string;
-  offset: Vec2;
   weight: number;
 }
 
@@ -95,15 +93,9 @@ export class Magnet {
     this.isMoving = true;
   }
 
+  /** Loot is tracked as data only — it is listed in the HUD, not drawn on the
+   *  magnet, so the arena stays readable. */
   attach(item: CarriedItem): void {
-    // Ring the loot outside the magnet body so a heavy load reads at a glance
-    // instead of disappearing behind the sprite.
-    const index = this.carried.length;
-    const perRing = 8;
-    const ring = Math.floor(index / perRing);
-    const angle = (index % perRing) * ((Math.PI * 2) / perRing) + ring * 0.4 + Math.random() * 0.18;
-    const dist = this.radius * (1.15 + ring * 0.62);
-    item.offset = { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist };
     this.carried.push(item);
   }
 

@@ -38,15 +38,17 @@ export interface BoardObject {
   pos: Vec2;
   targetPos: Vec2;
   radius: number;
-  pulsesReceived: number;
   carried: boolean;
   spawnDelay: number;
   settled: boolean;
+  /** Set each frame while the magnet is actively dragging this object. */
+  beingPulled: boolean;
 }
 
 export interface PersistentState {
   coins: number;
   upgrades: Record<UpgradeId, number>;
   discovered: string[];
-  totalRuns: number;
+  /** Number of shifts completed — the next one is `shiftsDone + 1`. */
+  shiftsDone: number;
 }

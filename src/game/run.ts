@@ -1,6 +1,6 @@
-import type { BoardObject, ItemDef, PersistentState, Vec2 } from './types';
+import type { BoardObject, ItemDef, PersistentState } from './types';
 import { generateBoard, randomMagnetStart } from './board';
-import { Magnet, stepBody, type ArenaRect } from './magnet';
+import { Magnet, type ArenaRect } from './magnet';
 import { BASE_RUN_DURATION, BASE_SHOTS, ITEMS } from './content';
 import {
   loadEfficiency,
@@ -14,16 +14,22 @@ import {
 
 export type RunPhase = 'idle' | 'playing' | 'ended';
 
-export interface PayoutResult {
-  items: ItemDef[];
+/** One row of the shift report: an item type, how many were collected and what
+ *  they were worth in total. */
+export interface PayoutLine {
+  item: ItemDef;
+  count: number;
+  unitValue: number;
   total: number;
-  newDiscoveries: ItemDef[];
+  isNew: boolean;
 }
 
-export interface PulseEvent {
-  x: number;
-  y: number;
-  radius: number;
+export interface PayoutResult {
+  shift: number;
+  lines: PayoutLine[];
+  itemCount: number;
+  total: number;
+  newCount: number;
 }
 
 /** Launch speed and deceleration scale with the arena diagonal so the feel of a
@@ -32,6 +38,15 @@ const SPEED_PER_DIAGONAL = 1.15;
 const DECEL_PER_DIAGONAL = 0.62;
 const MIN_LAUNCH_POWER = 0.12;
 const MAX_LOAD_PENALTY = 0.72;
+
+/** Attraction is continuous. An object is dragged at
+ *  `PULL_SPEED × (power / weight) × falloff`, so a light nut snaps in almost
+ *  instantly while a heavy toolbox only creeps a few pixels as the magnet
+ *  rushes past — the gradual multi-pass pickup the design calls for, without
+ *  waiting for the magnet to come to rest. */
+const PULL_SPEED = 0.32;
+/** Pull is strongest at the magnet and weakest at the rim of the field. */
+const EDGE_FALLOFF = 0.65;
 
 /** Thickness of the decorative bay frame; physics walls sit on its inner edge. */
 export const FRAME_THICKNESS = 0.035;
@@ -48,9 +63,9 @@ export class RunManager {
   totalShots = BASE_SHOTS;
   lastPayout: PayoutResult | null = null;
 
-  onPulse?: (e: PulseEvent) => void;
   onRunEnd?: (payout: PayoutResult) => void;
   onBoardReady?: () => void;
+  onCollect?: (item: ItemDef) => void;
 
   constructor(state: PersistentState) {
     this.state = state;
@@ -66,6 +81,11 @@ export class RunManager {
 
   get frameSize(): number {
     return Math.round(this.scaleRef * FRAME_THICKNESS);
+  }
+
+  /** Shift the player is currently working, 1-based. */
+  get currentShift(): number {
+    return this.state.shiftsDone + 1;
   }
 
   arenaRect(): ArenaRect {
@@ -113,7 +133,7 @@ export class RunManager {
     return Math.min(MAX_LOAD_PENALTY, raw);
   }
 
-  startRun(): void {
+  startShift(): void {
     const rect = this.arenaRect();
     this.magnet.reset(randomMagnetStart(rect, this.magnet.radius));
     this.board = generateBoard(
@@ -128,7 +148,6 @@ export class RunManager {
     this.totalShots = BASE_SHOTS;
     this.lastPayout = null;
     this.phase = 'playing';
-    this.state.totalRuns += 1;
     this.onBoardReady?.();
   }
 
@@ -143,30 +162,6 @@ export class RunManager {
     this.magnet.launch(dirX, dirY, this.launchSpeed(p));
     this.shotsRemaining -= 1;
     return true;
-  }
-
-  /** Replays the shot physics without mutating state, so the aim line shows the
-   *  real path including wall bounces. */
-  predictTrajectory(dirX: number, dirY: number, power01: number): Vec2[] {
-    const p = Math.max(0, Math.min(1, power01));
-    if (p < MIN_LAUNCH_POWER) return [];
-
-    const speed = this.launchSpeed(p);
-    const pos: Vec2 = { ...this.magnet.pos };
-    const vel: Vec2 = { x: dirX * speed, y: dirY * speed };
-    const rect = this.arenaRect();
-    const decel = this.decel();
-    const dt = 1 / 120;
-    const points: Vec2[] = [];
-
-    for (let i = 0; i < 400; i++) {
-      const stopped = stepBody(pos, vel, this.magnet.radius, rect, decel, dt);
-      if (i % 7 === 0) points.push({ x: pos.x, y: pos.y });
-      if (stopped) break;
-    }
-    // Mark where the magnet actually comes to rest — that is where the pulse fires.
-    points.push({ x: pos.x, y: pos.y });
-    return points;
   }
 
   private updateBoardEntrance(dt: number): void {
@@ -192,40 +187,52 @@ export class RunManager {
     }
   }
 
-  private doPulse(): void {
+  /** Runs every frame, moving or not: anything inside the field is dragged
+   *  toward the magnet and snaps on once it touches. */
+  private updateAttraction(dt: number): void {
     const range = this.attractionRangePx();
     const power = magnetPower(this.state);
-    this.onPulse?.({ x: this.magnet.pos.x, y: this.magnet.pos.y, radius: range });
+    const maxStepSpeed = this.scaleRef * 3;
+    let collected = false;
 
     for (const obj of this.board) {
+      obj.beingPulled = false;
       if (obj.carried || !obj.settled) continue;
+
       const dx = this.magnet.pos.x - obj.pos.x;
       const dy = this.magnet.pos.y - obj.pos.y;
       const dist = Math.hypot(dx, dy);
       if (dist > range) continue;
 
-      const required = Math.max(1, Math.ceil(obj.item.weight / power));
-      obj.pulsesReceived += 1;
+      // Snap on as soon as the sprites meet, otherwise loot visibly sits on top
+      // of the magnet while it waits to be picked up.
+      const capture = this.magnet.radius * 0.95 + obj.radius * 0.9;
 
-      if (obj.pulsesReceived >= required || dist <= this.magnet.radius + obj.radius) {
+      if (dist <= capture) {
         obj.carried = true;
-        this.magnet.attach({
-          itemId: obj.item.id,
-          sprite: obj.item.sprite,
-          offset: { x: 0, y: 0 },
-          weight: obj.item.weight,
-        });
-      } else {
-        // Too heavy to lift this pulse: drag it part of the way and leave it there.
-        const frac = 1 / required;
-        obj.pos.x += dx * frac;
-        obj.pos.y += dy * frac;
-        obj.targetPos.x = obj.pos.x;
-        obj.targetPos.y = obj.pos.y;
+        collected = true;
+        this.magnet.attach({ itemId: obj.item.id, weight: obj.item.weight });
+        this.onCollect?.(obj.item);
+        continue;
       }
+
+      const falloff = 1 - (dist / range) * EDGE_FALLOFF;
+      const speed = Math.min(maxStepSpeed, this.scaleRef * PULL_SPEED * (power / obj.item.weight) * falloff);
+      const step = Math.min(dist - capture, speed * dt);
+      if (step <= 0) continue;
+
+      obj.pos.x += (dx / dist) * step;
+      obj.pos.y += (dy / dist) * step;
+      // An object dragged only part of the way stays where it was left, so the
+      // next pass can pick it up from closer in.
+      obj.targetPos.x = obj.pos.x;
+      obj.targetPos.y = obj.pos.y;
+      obj.beingPulled = true;
     }
 
-    this.board = this.board.filter((o) => !o.carried);
+    if (collected) {
+      this.board = this.board.filter((o) => !o.carried);
+    }
   }
 
   update(dt: number): void {
@@ -233,51 +240,69 @@ export class RunManager {
 
     this.timeRemaining -= dt;
     this.updateBoardEntrance(dt);
-
-    const wasMoving = this.magnet.isMoving;
     this.magnet.update(dt, this.arenaRect(), this.decel());
-
-    if (wasMoving && this.magnet.justStopped) {
-      this.doPulse();
-    }
+    this.updateAttraction(dt);
 
     if (this.timeRemaining <= 0) {
       this.timeRemaining = 0;
-      this.endRun();
+      this.endShift();
       return;
     }
 
-    if (this.shotsRemaining <= 0 && !this.magnet.isMoving) {
-      this.endRun();
+    if (this.shotsRemaining <= 0 && !this.magnet.isMoving && this.board.every((o) => !o.beingPulled)) {
+      this.endShift();
     }
   }
 
-  private endRun(): void {
+  private endShift(): void {
     if (this.phase !== 'playing') return;
+
     const valueMult = lootValueMultiplier(this.state);
-    const items = this.magnet.carried
-      .map((c) => ALL_ITEMS_INDEX.get(c.itemId))
-      .filter((i): i is ItemDef => i !== undefined);
+    const discovered = new Set(this.state.discovered);
 
-    let total = 0;
-    const newDiscoveries: ItemDef[] = [];
-    const discoveredSet = new Set(this.state.discovered);
+    // Group by item type: the report is "3 × Somun = 15", not a wall of icons.
+    const grouped = new Map<string, PayoutLine>();
+    for (const carried of this.magnet.carried) {
+      const item = ALL_ITEMS_INDEX.get(carried.itemId);
+      if (!item) continue;
 
-    for (const item of items) {
-      total += Math.round(item.value * valueMult);
-      if (!discoveredSet.has(item.id)) {
-        discoveredSet.add(item.id);
-        newDiscoveries.push(item);
+      const unitValue = Math.round(item.value * valueMult);
+      const existing = grouped.get(item.id);
+      if (existing) {
+        existing.count += 1;
+        existing.total += unitValue;
+      } else {
+        grouped.set(item.id, {
+          item,
+          count: 1,
+          unitValue,
+          total: unitValue,
+          isNew: !discovered.has(item.id),
+        });
       }
+      discovered.add(item.id);
     }
 
+    const lines = Array.from(grouped.values()).sort((a, b) => b.total - a.total);
+    const total = lines.reduce((sum, l) => sum + l.total, 0);
+    const itemCount = lines.reduce((sum, l) => sum + l.count, 0);
+
+    const payout: PayoutResult = {
+      shift: this.currentShift,
+      lines,
+      itemCount,
+      total,
+      newCount: lines.filter((l) => l.isNew).length,
+    };
+
     this.state.coins += total;
-    this.state.discovered = Array.from(discoveredSet);
+    this.state.discovered = Array.from(discovered);
+    this.state.shiftsDone += 1;
     saveState(this.state);
 
-    this.lastPayout = { items, total, newDiscoveries };
+    this.lastPayout = payout;
     this.phase = 'ended';
-    this.onRunEnd?.(this.lastPayout);
+    this.onRunEnd?.(payout);
   }
 }
 

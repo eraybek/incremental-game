@@ -129,23 +129,42 @@ Gerçek zamanlı enerji sistemi, reklam zorunluluğu, karmaşık crafting, karak
 
 ---
 
-## Implementasyon Notları (v0.2 prototip)
+## Implementasyon Notları (v0.3 prototip)
 
 Bu bölüm GDD'nin üzerine, mevcut kod tabanının GDD'yi nasıl karşıladığını özetler.
 
 ### GDD'den bilinçli sapmalar
 
-- **Ekran yönü: landscape (GDD §2 portrait diyor).** Oyun yatay ekran için tasarlandı. Gerekçe: mıknatısın atış menzili sahayı bir sekmeyle geçebilecek kadar uzun, ve geniş board hem cluster okumayı hem de sekmeli atış planlamayı çok daha iyi gösteriyor. Portrait telefonlarda "telefonu yatay çevir" ekranı gösteriliyor.
-- **Mıknatıs başlangıç konumu rastgele (GDD sabit bir başlangıç varsaymıyordu ama prototip alt-orta kullanıyordu).** Her run mıknatıs sahada rastgele bir noktada başlar; board bu noktanın etrafında bir keepout bırakacak şekilde üretilir. Bu, her turun açılış kararını farklılaştırıyor.
+- **Ekran yönü: landscape (GDD §2 portrait diyor).** Oyun yatay ekran için tasarlandı; mıknatısın atış menzili sahayı bir sekmeyle geçebilecek kadar uzun ve geniş board hem cluster okumayı hem de sekmeli atış planlamayı çok daha iyi gösteriyor. Portrait telefonlarda "telefonu yatay çevir" ekranı gösteriliyor.
+- **Mıknatıs başlangıç konumu her vardiyada rastgele.** Board bu noktanın etrafında bir keepout bırakacak şekilde üretilir; her turun açılış kararı farklı oluyor.
+- **Moving Attraction artık temel mekanik, milestone değil (GDD §12'de unlock'tu).** Çekim sürekli ve her karede çalışıyor: mıknatıs havadayken de menzilindeki objeleri sürüklüyor. Pulse modeli (mıknatısın durmasını bekleme) tamamen kaldırıldı. Milestone listesinden çıkarıldı.
+- **Tur birimi "vardiya" olarak adlandırıldı.** Hurdalık/atölye temasına "run"dan daha iyi oturuyor; ekran akışı da bunun üzerine kurulu.
+
+### Çekim modeli
+
+Her karede, menzil içindeki her obje `PULL_SPEED × (power / weight) × falloff` hızıyla mıknatısa doğru çekilir; sprite'lar değdiğinde obje toplanır.
+
+- Hafif obje neredeyse anında yapışır; ağır obje mıknatıs yanından geçerken sadece birkaç piksel sürüklenir ve **yeni konumunda kalır** — GDD §5'teki kademeli toplama, mıknatısın durmasını beklemeden.
+- Mıknatıs durduğunda çekim devam eder, yani ağır objeler zamanla süzülerek gelir. Bu da süre ile atış hakkı arasında gerçek bir takas yaratır: bekleyip ağırı almak mı, atış harcayıp yeni cluster'a gitmek mi.
+
+### Ekran akışı
+
+`Ana Menü → Vardiya intro ("VARDİYA N") → Oyun → Vardiya sonu raporu` döngüsü `src/main.ts` içindeki akış kontrolü ve `src/ui/ui.ts` içindeki ekran yöneticisi ile kurulu. Geliştirme, Koleksiyon ve Ayarlar alt ekranları nereden açıldıysa oraya geri döner. Ayarlar ekranında ana menüye dönüş ve ilerleme sıfırlama var.
+
+Vardiya sonu raporu ürün bazlı kırılım gösterir: hangi üründen kaç adet, adet başına kaç para, satır toplamı ve genel toplam. Uzun raporlarda tablo kayar, toplam ve butonlar sabit kalır.
+
+### Sunum kararları
+
+- **Mıknatıs tek sprite, sabit boyut.** Durum bazlı sprite değişimi (idle/active/moving) kaldırıldı; farklı kırpma oranları yüzünden mıknatıs nişan alırken büyüyor gibi görünüyordu.
+- **Nişan alırken sonuç gösterilmiyor.** Yörünge tahmini kaldırıldı; sadece lastik bandı, yön oku ve güç yayı var. Sekmeyi okumak oyuncunun işi.
+- **Çekim menzili her zaman görünür** (sürekli çekim yaptığı için), çekilen objelere kesikli bağ çizilir.
+- **Zemin kasıtlı olarak düz:** lacivert taban + seyrek yatay çizgiler. Gölge, doku, plaka ve leke yok — sahnedeki en dikkat çekici şeyler loot ve mıknatıs olmalı.
+- **Toplanan loot mıknatısın üzerinde değil HUD'da.** Mıknatısın çevresine dizildiğinde sahneyi kalabalıklaştırıyor ve çekim alanının parçasıymış gibi okunuyordu.
 
 ### Teknik
 
-- **Stack:** Vite + TypeScript + Canvas2D, framework'süz. DOM tabanlı HUD/modal'lar (`src/ui/hud.ts`) ve canvas tabanlı oyun sahnesi (`src/render/scene.ts`) ayrılmıştır.
-- **Fizik:** `src/game/magnet.ts` — impulse launch + sürtünme ile yavaşlama + duvar sekmesi. `stepBody()` hem canlı mıknatıs hem de nişan önizlemesi tarafından paylaşılır, böylece gösterilen yörünge gerçek yörüngedir (sekmeler dahil).
-- **Ölçekleme:** Tüm yarıçap ve menziller arenanın **kısa** kenarına (`scaleRef`), atış hızı ve sürtünme ise köşegene göre ölçeklenir. Böylece oyun 844×390 telefonda da 1280×720 masaüstünde de aynı hissi verir.
-- **Çekim:** `src/game/run.ts` `doPulse()` — `requiredPulses = ceil(weight / power)` formülü ile GDD §5'teki kademeli çekimi birebir uygular. Kaldırılamayan obje mesafenin `1/required` kadarını kat eder ve yeni yerinde kalır.
-- **Load:** Taşınan objelerin toplam ağırlığı sonraki atışın hızını `loadPenalty()` ile azaltır; HUD'da yüzde olarak canlı gösterilir. Load Efficiency upgrade'i bu cezayı düşürür.
-- **Rarity/Loot Quality:** `src/game/board.ts` `pickRarity()` — Loot Quality seviyesi arttıkça uncommon/rare ihtimali kayar (GDD §9).
-- **Milestone'lar (Moving Attraction, Live Drops, Time Slow, Extra Shot, Extra Time, Automation):** GDD §15'e göre ilk prototipte zorunlu değil; Upgrade ekranında kilitli/pasif liste olarak gösteriliyor, henüz fonksiyonel değil.
-- **Assetler:** `public/assets/` altında GDD ile birlikte gelen referans sprite sheet'inden otomatik arka plan temizleme + dilimleme ile çıkarılan placeholder sprite'lar kullanılıyor. Nihai/onaylı asset paketi geldiğinde bu klasörlerin içeriği değiştirilebilir; kod dosya yollarına göre çalıştığı için çoğu değişiklik sadece asset dosyalarının üzerine yazılmasını gerektirir.
-- **Arka plan:** Sprite sheet'te hazır bir zemin tile'ı tekrarlamak yerine sahne prosedürel çiziliyor — koyu çelik gradient, geniş zemin plakaları, düşük opaklıkta taş grain, yağ lekeleri, tavan ışığı ve vignette. Amaç collectible'ların sahnedeki en parlak şey olarak kalması.
+- **Stack:** Vite + TypeScript + Canvas2D, framework'süz. DOM tabanlı ekranlar/HUD (`src/ui/`) ve canvas tabanlı arena (`src/render/scene.ts`) ayrı.
+- **Ölçekleme:** Tüm yarıçap ve menziller arenanın **kısa** kenarına (`scaleRef`), atış hızı ve sürtünme ise köşegene göre ölçeklenir. Telefon ve masaüstünde his aynı.
+- **Kalıcılık:** para, upgrade seviyeleri, koleksiyon ve tamamlanan vardiya sayısı localStorage'da.
+- **Assetler:** GDD ile gelen referans sprite sheet'inden otomatik arka plan temizleme + dilimleme ile çıkarılan placeholder'lar. Çalışma anında kurulan asset URL'leri `src/assetPath.ts` içindeki `asset()` yardımcısından geçer (GitHub Pages alt yolu için gerekli).
+- **Milestone'lar (Live Drops, Time Slow, Extra Shot, Extra Time, Automation):** henüz fonksiyonel değil, Geliştirme ekranında kilitli liste olarak duruyor. İleride skill tree ekranına taşınabilir.

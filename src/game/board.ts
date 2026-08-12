@@ -63,10 +63,10 @@ export function generateBoard(
       pos: { x, y: rect.minY - radius * 2 - Math.random() * height },
       targetPos: { x, y },
       radius,
-      pulsesReceived: 0,
       carried: false,
       spawnDelay: Math.random() * 0.3,
       settled: false,
+      beingPulled: false,
     });
   }
 

@@ -13,16 +13,14 @@ export const UI_SPRITES = {
   upgrade: `${A}/buttons/btn_r2c2.png`,
   collection: `${A}/buttons/btn_r4c3.png`,
   lock: `${A}/buttons/btn_r4c2.png`,
+  settings: `${A}/buttons/btn_r2c4.png`,
+  back: `${A}/buttons/btn_r2c5.png`,
 };
 
 /** Everything the canvas scene draws directly. */
 export const SCENE_SPRITES = {
-  magnetIdle: `${A}/magnet/magnet_idle.png`,
-  magnetActive: `${A}/magnet/magnet_active.png`,
-  magnetMoving: `${A}/magnet/magnet_moving.png`,
-  floorTile: `${A}/environment/tile_r2c2.png`,
+  magnet: `${A}/magnet/magnet.png`,
   hazardTile: `${A}/environment/tile_r6c3.png`,
-  pipeTile: `${A}/environment/tile_r6c1.png`,
 };
 
 export const ITEMS: ItemDef[] = [
@@ -79,7 +77,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'power',
     name: 'Magnet Power',
-    description: 'Ağır objeleri daha az atışta çeker.',
+    description: 'Objeleri daha hızlı çeker, daha ağırlarını kaldırır.',
     icon: `${A}/hud/icon_magnet_small.png`,
     baseCost: 18,
     costGrowth: 1.32,
@@ -143,11 +141,10 @@ export interface Milestone {
 }
 
 export const MILESTONES: Milestone[] = [
-  { name: 'Moving Attraction', description: 'Mıknatıs hareket ederken de çekim yapar.', icon: `${A}/buttons/btn_r4c2.png` },
-  { name: 'Live Drops', description: 'Run sırasında yukarıdan yeni objeler düşer.', icon: `${A}/buttons/btn_r4c2.png` },
+  { name: 'Live Drops', description: 'Vardiya sırasında yukarıdan yeni objeler düşer.', icon: `${A}/buttons/btn_r4c2.png` },
   { name: 'Time Slow', description: 'Nişan alırken zaman yavaşlar.', icon: `${A}/buttons/btn_r4c2.png` },
-  { name: 'Extra Shot', description: 'Run başına atış sayısını artırır.', icon: `${A}/buttons/btn_r4c2.png` },
-  { name: 'Extra Time', description: 'Run süresini uzatır.', icon: `${A}/buttons/btn_r4c2.png` },
+  { name: 'Extra Shot', description: 'Vardiya başına atış sayısını artırır.', icon: `${A}/buttons/btn_r4c2.png` },
+  { name: 'Extra Time', description: 'Vardiya süresini uzatır.', icon: `${A}/buttons/btn_r4c2.png` },
   { name: 'Automation', description: 'Küçük objeleri otomatik toplar.', icon: `${A}/buttons/btn_r4c2.png` },
 ];
 

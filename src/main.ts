@@ -1,8 +1,8 @@
 import './style.css';
 import { RunManager } from './game/run';
 import { Scene, type AimState } from './render/scene';
-import { Hud } from './ui/hud';
-import { loadState } from './game/state';
+import { Ui } from './ui/ui';
+import { loadState, resetProgress } from './game/state';
 import { ITEMS, UPGRADES, MILESTONES, UI_SPRITES, SCENE_SPRITES } from './game/content';
 import { preload } from './render/assets';
 
@@ -13,7 +13,7 @@ const uiRoot = document.getElementById('ui-root') as HTMLElement;
 const persistent = loadState();
 const run = new RunManager(persistent);
 const scene = new Scene(canvas);
-const hud = new Hud(uiRoot, run, persistent);
+const ui = new Ui(uiRoot, run, persistent);
 
 void preload([
   ...ITEMS.map((i) => i.sprite),
@@ -35,7 +35,60 @@ window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 250));
 resize();
 
-const aim: AimState = { active: false, dirX: 0, dirY: -1, power01: 0 };
+// ------------------------------------------------------------ shift flow
+
+const INTRO_MS = 1300;
+let introTimer: number | undefined;
+
+function beginShift(): void {
+  window.clearTimeout(introTimer);
+  ui.showIntro(run.currentShift);
+  introTimer = window.setTimeout(() => {
+    run.startShift();
+    ui.resetHaul();
+    ui.setScreen('playing');
+  }, INTRO_MS);
+}
+
+ui.onStartShift = beginShift;
+
+ui.onBackToMenu = () => {
+  window.clearTimeout(introTimer);
+  run.phase = 'idle';
+  run.board = [];
+  ui.setScreen('menu');
+};
+
+ui.onResetProgress = () => {
+  window.clearTimeout(introTimer);
+  resetProgress(persistent);
+  run.phase = 'idle';
+  run.board = [];
+  ui.setScreen('menu');
+};
+
+run.onRunEnd = (payout) => ui.showResult(payout);
+
+// Tapping through the intro skips the remaining wait.
+uiRoot.addEventListener('pointerdown', (e) => {
+  if (ui.screen !== 'intro') return;
+  e.preventDefault();
+  window.clearTimeout(introTimer);
+  run.startShift();
+  ui.resetHaul();
+  ui.setScreen('playing');
+});
+
+// ----------------------------------------------------------------- input
+
+const aim: AimState = {
+  active: false,
+  dirX: 0,
+  dirY: -1,
+  power01: 0,
+  pointerX: 0,
+  pointerY: 0,
+};
 let activePointerId: number | null = null;
 /** Full-power pull distance, measured against the short axis so the gesture is
  *  the same length regardless of how wide the window is. */
@@ -47,6 +100,8 @@ function pointerToLocal(e: PointerEvent): { x: number; y: number } {
 }
 
 function updateAimFromPoint(px: number, py: number): void {
+  aim.pointerX = px;
+  aim.pointerY = py;
   let dx = run.magnet.pos.x - px;
   let dy = run.magnet.pos.y - py;
   const dist = Math.hypot(dx, dy);
@@ -63,7 +118,7 @@ function updateAimFromPoint(px: number, py: number): void {
 }
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (!run.canShoot()) return;
+  if (ui.screen !== 'playing' || !run.canShoot()) return;
   activePointerId = e.pointerId;
   aim.active = true;
   const p = pointerToLocal(e);
@@ -87,25 +142,16 @@ function endAim(e: PointerEvent): void {
 canvas.addEventListener('pointerup', endAim);
 canvas.addEventListener('pointercancel', endAim);
 
-run.onPulse = (p) => scene.addPulseFx(p.x, p.y, p.radius);
-run.onBoardReady = () => scene.regenerateFloor();
-run.onRunEnd = (payout) => hud.showPayout(payout);
-
-hud.onRequestStart = () => {
-  hud.hideStartScreen();
-  run.startRun();
-};
-
-hud.showStartScreenIfNew();
+// ------------------------------------------------------------------ loop
 
 let lastTime = performance.now();
 function loop(now: number): void {
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
 
-  run.update(dt);
+  if (ui.screen === 'playing') run.update(dt);
   scene.draw(run, aim, dt);
-  hud.tick();
+  ui.tick();
 
   requestAnimationFrame(loop);
 }

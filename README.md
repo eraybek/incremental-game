@@ -2,7 +2,9 @@
 
 Mobil-first, **yatay ekran (landscape)**, tek parmakla oynanan bir magnet-fizik / incremental oyunu. Tasarım detayları için [DESIGN.md](./DESIGN.md).
 
-Mıknatısı geri çekip bırakırsın; durduğu noktada manyetik pulse atar ve menzilindeki metal objeleri kendine çeker. Ağır objeler tek pulse'ta gelmez, birkaç atışta kademeli olarak yaklaşır. Toplanan yük mıknatısı ağırlaştırıp sonraki atışı kısaltır — süre ve atış hakkı biterken risk/ödül kararı budur.
+Mıknatısı geri çekip bırakırsın; çekim alanı sürekli açıktır, yani mıknatıs havada süzülürken bile menzilindeki metali kendine doğru sürükler. Hafif parçalar anında yapışır, ağırlar sadece biraz kayar ve yeni yerlerinde kalır — onları almak için ya tekrar üzerlerine gitmen ya da yanlarında beklemen gerekir. Toplanan yük mıknatısı ağırlaştırıp sonraki atışı kısaltır; süre ve atış hakkı biterken risk/ödül kararı budur.
+
+Bir tur "vardiya" olarak adlandırılır: Ana menü → vardiya başlangıcı → oyun → vardiya sonu raporu → geliştirme → yeni vardiya.
 
 ## Geliştirme
 
@@ -32,9 +34,10 @@ Pages bir proje alt yolunda (`/incremental-game/`) yayınlandığı için build 
 
 ```
 src/
-  game/     saf oyun mantığı (board üretimi, magnet fiziği, run/upgrade state)
+  game/     saf oyun mantığı (board üretimi, magnet fiziği, çekim, vardiya/upgrade state)
   render/   canvas çizim katmanı ve asset loader
-  ui/       DOM tabanlı HUD ve modal'lar (upgrade shop, collection, payout)
+  ui/       DOM tabanlı ekranlar: menü, vardiya intro, HUD, rapor, geliştirme, koleksiyon, ayarlar
+  main.ts   ekran akışı, girdi ve oyun döngüsü
 public/
   assets/   sprite'lar (magnet, collectibles, environment, fx, buttons, rarity, hud icons)
 ```

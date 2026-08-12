@@ -14,7 +14,7 @@ export function createInitialState(): PersistentState {
     coins: 0,
     upgrades: emptyUpgrades(),
     discovered: [],
-    totalRuns: 0,
+    shiftsDone: 0,
   };
 }
 
@@ -28,7 +28,7 @@ export function loadState(): PersistentState {
       coins: typeof parsed.coins === 'number' ? parsed.coins : base.coins,
       upgrades: { ...base.upgrades, ...(parsed.upgrades ?? {}) },
       discovered: Array.isArray(parsed.discovered) ? parsed.discovered : [],
-      totalRuns: typeof parsed.totalRuns === 'number' ? parsed.totalRuns : 0,
+      shiftsDone: typeof parsed.shiftsDone === 'number' ? parsed.shiftsDone : 0,
     };
   } catch {
     return createInitialState();
@@ -84,4 +84,13 @@ export function lootValueMultiplier(state: PersistentState): number {
 
 export function lootQualityLevel(state: PersistentState): number {
   return state.upgrades.lootQuality;
+}
+
+export function resetProgress(state: PersistentState): void {
+  const fresh = createInitialState();
+  state.coins = fresh.coins;
+  state.upgrades = fresh.upgrades;
+  state.discovered = fresh.discovered;
+  state.shiftsDone = fresh.shiftsDone;
+  saveState(state);
 }
