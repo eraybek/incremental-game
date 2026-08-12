@@ -29,6 +29,8 @@ export interface UpgradeDef {
   name: string;
   description: string;
   icon: string;
+  /** Human-readable effect at a given level, so a card can show current → next. */
+  valueAt: (level: number) => string;
   baseCost: number;
   costGrowth: number;
   maxLevel: number;
@@ -54,4 +56,8 @@ export interface PersistentState {
   /** Number of shifts completed — the next one is `shiftsDone + 1`. */
   shiftsDone: number;
   muted: boolean;
+  /** 0..1 effect volume. */
+  sfxVolume: number;
+  particles: boolean;
+  haptics: boolean;
 }

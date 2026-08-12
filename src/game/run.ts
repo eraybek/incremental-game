@@ -32,6 +32,10 @@ export interface PayoutResult {
   itemCount: number;
   total: number;
   newCount: number;
+  /** Share of the total that came from anything above common. */
+  rareBonus: number;
+  timeLeft: number;
+  shotsLeft: number;
 }
 
 /** Launch speed and deceleration scale with the arena diagonal so the feel of a
@@ -346,6 +350,11 @@ export class RunManager {
       itemCount,
       total,
       newCount: lines.filter((l) => l.isNew).length,
+      rareBonus: lines
+        .filter((l) => l.item.rarity !== 'common')
+        .reduce((sum, l) => sum + l.total, 0),
+      timeLeft: Math.max(0, this.timeRemaining),
+      shotsLeft: this.shotsRemaining,
     };
 
     this.state.coins += total;

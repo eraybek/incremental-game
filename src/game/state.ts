@@ -3,6 +3,10 @@ import { BASE_RUN_DURATION, BASE_SHOTS, SECONDS_PER_TIME_LEVEL, UPGRADES, upgrad
 
 const STORAGE_KEY = 'magnet-incremental-save-v1';
 
+function clamp01(n: number): number {
+  return Math.min(1, Math.max(0, n));
+}
+
 function emptyUpgrades(): Record<UpgradeId, number> {
   const rec = {} as Record<UpgradeId, number>;
   for (const u of UPGRADES) rec[u.id] = 0;
@@ -16,6 +20,9 @@ export function createInitialState(): PersistentState {
     discovered: [],
     shiftsDone: 0,
     muted: false,
+    sfxVolume: 0.8,
+    particles: true,
+    haptics: true,
   };
 }
 
@@ -31,6 +38,9 @@ export function loadState(): PersistentState {
       discovered: Array.isArray(parsed.discovered) ? parsed.discovered : [],
       shiftsDone: typeof parsed.shiftsDone === 'number' ? parsed.shiftsDone : 0,
       muted: parsed.muted === true,
+      sfxVolume: typeof parsed.sfxVolume === 'number' ? clamp01(parsed.sfxVolume) : base.sfxVolume,
+      particles: parsed.particles !== false,
+      haptics: parsed.haptics !== false,
     };
   } catch {
     return createInitialState();
@@ -102,6 +112,6 @@ export function resetProgress(state: PersistentState): void {
   state.upgrades = fresh.upgrades;
   state.discovered = fresh.discovered;
   state.shiftsDone = fresh.shiftsDone;
-  // Deliberately keeps the audio preference: it is a device setting, not progress.
+  // Deliberately keeps audio/visual preferences: those are device settings, not progress.
   saveState(state);
 }

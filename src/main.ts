@@ -19,7 +19,7 @@ const run = new RunManager(persistent);
 const scene = new Scene(canvas);
 const ui = new Ui({ overlay: uiRoot, top: topBar, bottom: bottomBar }, run, persistent);
 
-initAudio(!persistent.muted);
+initAudio(!persistent.muted, persistent.sfxVolume);
 
 void preload([
   ...ITEMS.map((i) => i.sprite),
@@ -96,9 +96,19 @@ run.onBounce = (x, y, vx, vy, speed01) => {
   playSfx('bounce', 0.85 + speed01 * 0.5);
 };
 
+ui.onParticlesChanged = (on) => {
+  if (!on) scene.fx.clear();
+};
+
 run.onCollect = (item, x, y, value) => {
   const color = RARITY_COLOR[item.rarity];
   const rare = item.rarity !== 'common';
+  if (persistent.haptics) navigator.vibrate?.(rare ? 28 : 10);
+  if (!persistent.particles) {
+    playCollect(rare);
+    ui.pulseHaul();
+    return;
+  }
   scene.fx.ring(x, y, run.magnet.radius * 1.9, color, rare ? 4 : 2.5);
   scene.fx.burst(x, y, color, rare ? 14 : 7, rare ? 210 : 140);
   scene.fx.floatText(x, y - run.magnet.radius * 0.6, `+${value}`, rare ? color : '#ffd166');

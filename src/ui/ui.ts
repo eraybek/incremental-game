@@ -1,14 +1,15 @@
 import type { PayoutResult, RunManager } from '../game/run';
-import type { ItemDef, PersistentState } from '../game/types';
+import type { ItemDef, PersistentState, Rarity } from '../game/types';
 import {
   ITEMS,
   MILESTONES,
+  RARITY_COLOR,
   UI_SPRITES,
   UPGRADES,
   upgradeCost,
 } from '../game/content';
 import { buyUpgrade, canAfford, saveState } from '../game/state';
-import { isAudioEnabled, playSfx, setAudioEnabled } from '../audio/sfx';
+import { isAudioEnabled, playSfx, setAudioEnabled, setSfxVolume } from '../audio/sfx';
 import { button as rawButton, el, img, show } from './dom';
 
 /** Every button in the UI ticks. */
@@ -18,22 +19,39 @@ function button(
   onClick: () => void,
   iconSrc?: string,
 ): HTMLButtonElement {
-  return rawButton(label, className, () => {
-    playSfx('click');
-    onClick();
-  }, iconSrc);
+  return rawButton(
+    label,
+    className,
+    () => {
+      playSfx('click');
+      onClick();
+    },
+    iconSrc,
+  );
 }
 
-/** Every distinct thing the player can be looking at. `playing` is the only one
- *  with no full-screen panel over the arena. */
-export type ScreenName =
-  | 'menu'
-  | 'intro'
-  | 'playing'
-  | 'result'
-  | 'upgrades'
-  | 'collection'
-  | 'settings';
+/** Full-screen states. `playing` is the only one with no panel over the arena. */
+export type ScreenName = 'menu' | 'intro' | 'playing' | 'result' | 'hub';
+
+/** Sections inside the hub, reachable from each other without backing out. */
+export type HubTab = 'upgrades' | 'collection' | 'settings';
+
+type RarityFilter = Rarity | 'all' | 'epic' | 'legendary';
+
+const RARITY_LABEL: Record<Rarity, string> = {
+  common: 'Sıradan',
+  uncommon: 'Az Bulunur',
+  rare: 'Nadir',
+};
+
+const FILTERS: Array<{ id: RarityFilter; label: string; locked?: boolean }> = [
+  { id: 'all', label: 'Tümü' },
+  { id: 'common', label: 'Sıradan' },
+  { id: 'uncommon', label: 'Az Bulunur' },
+  { id: 'rare', label: 'Nadir' },
+  { id: 'epic', label: 'Epik', locked: true },
+  { id: 'legendary', label: 'Efsanevi', locked: true },
+];
 
 function fmtTime(seconds: number): string {
   const s = Math.max(0, Math.ceil(seconds));
@@ -41,11 +59,8 @@ function fmtTime(seconds: number): string {
 }
 
 export interface UiRoots {
-  /** Absolute overlay that hosts the full-screen panels. */
   overlay: HTMLElement;
-  /** Solid bar above the arena. */
   top: HTMLElement;
-  /** Solid bar below the arena. */
   bottom: HTMLElement;
 }
 
@@ -59,6 +74,7 @@ export class Ui {
   private screens = new Map<ScreenName, HTMLElement>();
   private current: ScreenName = 'menu';
 
+  // arena bars
   private coinLabel!: HTMLElement;
   private timeLabel!: HTMLElement;
   private timePill!: HTMLElement;
@@ -68,26 +84,43 @@ export class Ui {
   private haulStrip!: HTMLElement;
   private haulCount = -1;
 
-  private introTitle!: HTMLElement;
-  private menuStart!: HTMLElement;
+  // menu
+  private menuStart!: HTMLButtonElement;
   private menuStats!: HTMLElement;
+
+  // intro
+  private introTitle!: HTMLElement;
+
+  // result
   private resultTitle!: HTMLElement;
+  private resultPile!: HTMLElement;
+  private resultSummary!: HTMLElement;
   private resultTable!: HTMLElement;
-  private resultTotal!: HTMLElement;
-  private resultNote!: HTMLElement;
+
+  // hub
+  private hubTitle!: HTMLElement;
+  private hubCoins!: HTMLElement;
+  private hubPanels = new Map<HubTab, HTMLElement>();
+  private hubTabButtons = new Map<HubTab, HTMLButtonElement>();
+
   private upgradeList!: HTMLElement;
-  private upgradeCoins!: HTMLElement;
   private collectionGrid!: HTMLElement;
   private collectionCount!: HTMLElement;
+  private collectionDetail!: HTMLElement;
+  private collectionFilters!: HTMLElement;
+  private activeFilter: RarityFilter = 'all';
+  private selectedItemId: string | null = null;
   private soundBtn!: HTMLButtonElement;
+  private volumeSlider!: HTMLInputElement;
 
-  /** Where Geliştirme / Koleksiyon / Ayarlar should return to. */
+  /** Where the hub's back button returns to. */
   private returnTo: ScreenName = 'menu';
 
   onStartShift?: () => void;
   onBackToMenu?: () => void;
   onResetProgress?: () => void;
   onFinishShift?: () => void;
+  onParticlesChanged?: (on: boolean) => void;
 
   constructor(roots: UiRoots, run: RunManager, state: PersistentState) {
     this.root = roots.overlay;
@@ -100,9 +133,7 @@ export class Ui {
     this.buildMenu();
     this.buildIntro();
     this.buildResult();
-    this.buildUpgrades();
-    this.buildCollection();
-    this.buildSettings();
+    this.buildHub();
 
     this.setScreen('menu');
   }
@@ -127,22 +158,29 @@ export class Ui {
     this.bottomBar.classList.toggle('bar-idle', !playing);
 
     if (name === 'menu') this.refreshMenu();
-    if (name === 'upgrades') this.renderUpgrades();
-    if (name === 'collection') this.renderCollection();
   }
 
   get screen(): ScreenName {
     return this.current;
   }
 
-  /** Opens a sub-screen, remembering where to come back to. */
-  private openSub(name: ScreenName): void {
-    if (this.current !== name) this.returnTo = this.current;
-    this.setScreen(name);
+  /** Opens the hub on a tab, remembering where to come back to. */
+  openHub(tab: HubTab): void {
+    if (this.current !== 'hub') this.returnTo = this.current;
+    this.setHubTab(tab);
+    this.setScreen('hub');
   }
 
-  private closeSub(): void {
-    this.setScreen(this.returnTo);
+  private setHubTab(tab: HubTab): void {
+    for (const [key, node] of this.hubPanels) show(node, key === tab);
+    for (const [key, btn] of this.hubTabButtons) btn.classList.toggle('active', key === tab);
+
+    this.hubTitle.textContent =
+      tab === 'upgrades' ? 'Geliştirmeler' : tab === 'collection' ? 'Koleksiyon' : 'Ayarlar';
+    show(this.hubCoins, tab !== 'settings');
+
+    if (tab === 'upgrades') this.renderUpgrades();
+    if (tab === 'collection') this.renderCollection();
   }
 
   // ------------------------------------------------------------------- bars
@@ -155,8 +193,6 @@ export class Ui {
   }
 
   private buildBars(): void {
-    // Top: money on the left, the two things under pressure dead centre and
-    // oversized, settings on the right.
     const coin = this.statPill(UI_SPRITES.coin);
     this.coinLabel = coin.label;
     const topLeft = el('div', 'bar-group');
@@ -173,14 +209,13 @@ export class Ui {
     const topCentre = el('div', 'bar-group centre');
     topCentre.append(this.timePill, shotGauge);
 
-    const settingsBtn = button('', 'icon-btn square', () => this.openSub('settings'), UI_SPRITES.settings);
+    const settingsBtn = button('', 'icon-btn square', () => this.openHub('settings'), UI_SPRITES.settings);
     settingsBtn.title = 'Ayarlar';
     const topRight = el('div', 'bar-group end');
     topRight.append(settingsBtn);
 
     this.topBar.append(topLeft, topCentre, topRight);
 
-    // Bottom: carried weight and the haul, then the finish button on the right.
     const load = this.statPill(UI_SPRITES.magnet);
     this.loadLabel = load.label;
     this.haulStrip = el('div', 'haul-strip');
@@ -217,6 +252,12 @@ export class Ui {
     }
   }
 
+  pulseHaul(): void {
+    this.haulStrip.classList.remove('pulse');
+    void this.haulStrip.offsetWidth;
+    this.haulStrip.classList.add('pulse');
+  }
+
   // ------------------------------------------------------------------- menu
 
   private buildMenu(): void {
@@ -232,35 +273,42 @@ export class Ui {
     );
 
     this.menuStats = el('div', 'menu-stats');
-
-    this.menuStart = button('VARDİYAYA BAŞLA', 'big-btn', () => this.onStartShift?.());
+    this.menuStart = button('VARDİYAYA BAŞLA', 'big-btn hero', () => this.onStartShift?.(), UI_SPRITES.play);
 
     const row = el('div', 'btn-row');
     row.append(
-      button('Geliştirme', 'ghost-btn', () => this.openSub('upgrades'), UI_SPRITES.upgrade),
-      button('Koleksiyon', 'ghost-btn', () => this.openSub('collection'), UI_SPRITES.collection),
-      button('Ayarlar', 'ghost-btn', () => this.openSub('settings'), UI_SPRITES.settings),
+      button('Geliştirmeler', 'ghost-btn', () => this.openHub('upgrades'), UI_SPRITES.upgrade),
+      button('Koleksiyon', 'ghost-btn', () => this.openHub('collection'), UI_SPRITES.collection),
+      button('Ayarlar', 'ghost-btn', () => this.openHub('settings'), UI_SPRITES.settings),
     );
 
     panel.append(logo, tagline, this.menuStats, this.menuStart, row);
   }
 
+  private statCard(icon: string, value: string, label: string): HTMLElement {
+    const card = el('div', 'stat-card');
+    card.append(img(icon), el('strong', undefined, value), el('span', undefined, label));
+    return card;
+  }
+
   private refreshMenu(): void {
-    const next = this.run.currentShift;
     this.menuStart.querySelector('span')!.textContent =
-      this.state.shiftsDone === 0 ? 'VARDİYAYA BAŞLA' : `VARDİYA ${next}'E BAŞLA`;
+      this.state.shiftsDone === 0 ? 'VARDİYAYA BAŞLA' : `VARDİYA ${this.run.currentShift}`;
+
     this.menuStats.innerHTML = '';
     this.menuStats.append(
-      el('span', undefined, `${this.state.coins} para`),
-      el('span', undefined, `${this.state.shiftsDone} vardiya`),
-      el('span', undefined, `${this.state.discovered.length}/${ITEMS.length} koleksiyon`),
+      this.statCard(UI_SPRITES.coin, `${this.state.coins}`, 'para'),
+      this.statCard(UI_SPRITES.hourglass, `${this.state.shiftsDone}`, 'vardiya'),
+      this.statCard(
+        UI_SPRITES.collection,
+        `${this.state.discovered.length}/${ITEMS.length}`,
+        'koleksiyon',
+      ),
     );
   }
 
   // ------------------------------------------------------------------ intro
 
-  /** Sits over the arena rather than blacking it out, so the player sees the
-   *  empty bay and where the magnet landed before the scrap drops in. */
   private buildIntro(): void {
     const panel = this.panel('intro', 'screen-center screen-scrim');
     this.introTitle = el('div', 'intro-title');
@@ -280,31 +328,93 @@ export class Ui {
 
     const head = el('div', 'sheet-head');
     this.resultTitle = el('h2');
-    const settingsBtn = button('', 'icon-btn square', () => this.openSub('settings'), UI_SPRITES.settings);
+    const settingsBtn = button('', 'icon-btn square', () => this.openHub('settings'), UI_SPRITES.settings);
     settingsBtn.title = 'Ayarlar';
     head.append(this.resultTitle, settingsBtn);
 
-    this.resultNote = el('div', 'sheet-note');
-    this.resultTable = el('div', 'result-table');
+    // Left: the haul as a pile. Right: the numbers that matter.
+    this.resultPile = el('div', 'result-pile');
+    this.resultSummary = el('div', 'result-summary');
+    const top = el('div', 'result-top');
+    top.append(this.resultPile, this.resultSummary);
 
-    this.resultTotal = el('div', 'result-total');
+    this.resultTable = el('div', 'result-table');
+    const tableWrap = el('details', 'result-details');
+    const summaryToggle = el('summary', undefined, 'Parça dökümü');
+    tableWrap.append(summaryToggle, this.resultTable);
 
     const actions = el('div', 'btn-row wide');
     actions.append(
-      button('Geliştirme', 'big-btn alt', () => this.openSub('upgrades'), UI_SPRITES.upgrade),
+      button('Geliştirmeler', 'big-btn alt', () => this.openHub('upgrades'), UI_SPRITES.upgrade),
+      button('Koleksiyon', 'big-btn info', () => this.openHub('collection'), UI_SPRITES.collection),
       button('Yeni Vardiya', 'big-btn', () => this.onStartShift?.(), UI_SPRITES.play),
     );
 
-    sheet.append(head, this.resultNote, this.resultTable, this.resultTotal, actions);
+    sheet.append(head, top, tableWrap, actions);
     panel.appendChild(sheet);
+  }
+
+  private summaryRow(
+    icon: string,
+    label: string,
+    value: string,
+    tone: 'normal' | 'accent' | 'rare' = 'normal',
+  ): HTMLElement {
+    const row = el('div', `summary-row ${tone}`);
+    row.append(img(icon), el('span', 'summary-label', label), el('strong', 'summary-value', value));
+    return row;
   }
 
   showResult(payout: PayoutResult): void {
     this.resultTitle.textContent = `Vardiya ${payout.shift} tamamlandı`;
-    this.resultNote.textContent =
-      payout.itemCount === 0
-        ? 'Bu vardiyada hiçbir şey toplayamadın.'
-        : `${payout.itemCount} parça hurda${payout.newCount > 0 ? ` · ${payout.newCount} yeni keşif` : ''}`;
+
+    // Pile: one sprite per collected piece, scattered in a phyllotaxis spiral
+    // so a big haul reads as a heap rather than a list.
+    this.resultPile.innerHTML = '';
+    const pieces: ItemDef[] = [];
+    for (const line of payout.lines) {
+      for (let i = 0; i < line.count; i++) pieces.push(line.item);
+    }
+    if (pieces.length === 0) {
+      this.resultPile.appendChild(el('div', 'pile-empty', 'Eli boş döndün'));
+    } else {
+      pieces.slice(0, 26).forEach((item, i) => {
+        const node = img(item.sprite, 'pile-item');
+        const angle = i * 2.399963;
+        const radius = 6 + Math.sqrt(i) * 15;
+        node.style.left = `calc(50% + ${Math.cos(angle) * radius}px)`;
+        node.style.top = `calc(50% + ${Math.sin(angle) * radius * 0.72}px)`;
+        node.style.setProperty('--i', `${i}`);
+        if (item.rarity !== 'common') {
+          node.style.filter = `drop-shadow(0 0 6px ${RARITY_COLOR[item.rarity]})`;
+        }
+        this.resultPile.appendChild(node);
+      });
+    }
+
+    this.resultSummary.innerHTML = '';
+    this.resultSummary.append(
+      this.summaryRow(UI_SPRITES.magnet, 'Toplanan parça', `${payout.itemCount}`),
+      this.summaryRow(
+        UI_SPRITES.collection,
+        'Nadir bonusu',
+        payout.rareBonus > 0 ? `+${payout.rareBonus}` : '—',
+        payout.rareBonus > 0 ? 'rare' : 'normal',
+      ),
+      this.summaryRow(UI_SPRITES.hourglass, 'Kalan süre', fmtTime(payout.timeLeft)),
+      this.summaryRow(UI_SPRITES.lightning, 'Kalan atış', `${payout.shotsLeft}`),
+    );
+
+    const totalRow = this.summaryRow(UI_SPRITES.coin, 'Toplam kazanç', '0', 'accent');
+    totalRow.classList.add('total');
+    this.resultSummary.appendChild(totalRow);
+    this.countUp(totalRow.querySelector('.summary-value')!, payout.total);
+
+    if (payout.newCount > 0) {
+      this.resultSummary.appendChild(
+        el('div', 'discovery-note', `${payout.newCount} yeni parça koleksiyona eklendi`),
+      );
+    }
 
     this.resultTable.innerHTML = '';
     let index = 0;
@@ -328,15 +438,6 @@ export class Ui {
       this.resultTable.appendChild(row);
     }
 
-    this.resultTotal.innerHTML = '';
-    const totalValue = el('span', 'result-total-value', '0');
-    this.resultTotal.append(
-      el('span', 'result-total-label', 'Toplam kazanç'),
-      img(UI_SPRITES.coin),
-      totalValue,
-    );
-    this.countUp(totalValue, payout.total);
-
     this.setScreen('result');
   }
 
@@ -357,20 +458,45 @@ export class Ui {
     requestAnimationFrame(step);
   }
 
+  // -------------------------------------------------------------------- hub
+
+  private buildHub(): void {
+    const panel = this.panel('hub', 'screen-full');
+    const shell = el('div', 'hub');
+
+    const head = el('div', 'hub-head');
+    const back = button('', 'icon-btn square', () => this.setScreen(this.returnTo), UI_SPRITES.back);
+    back.title = 'Geri';
+    this.hubTitle = el('h2');
+    this.hubCoins = el('div', 'coin-badge');
+    head.append(back, this.hubTitle, this.hubCoins);
+
+    const body = el('div', 'hub-body');
+    this.hubPanels.set('upgrades', this.buildUpgradesPanel());
+    this.hubPanels.set('collection', this.buildCollectionPanel());
+    this.hubPanels.set('settings', this.buildSettingsPanel());
+    for (const node of this.hubPanels.values()) body.appendChild(node);
+
+    const tabs = el('div', 'hub-tabs');
+    const defs: Array<[HubTab, string, string]> = [
+      ['upgrades', 'Geliştirmeler', UI_SPRITES.upgrade],
+      ['collection', 'Koleksiyon', UI_SPRITES.collection],
+      ['settings', 'Ayarlar', UI_SPRITES.settings],
+    ];
+    for (const [id, label, icon] of defs) {
+      const btn = button(label, 'hub-tab', () => this.setHubTab(id), icon);
+      this.hubTabButtons.set(id, btn);
+      tabs.appendChild(btn);
+    }
+
+    shell.append(head, body, tabs);
+    panel.appendChild(shell);
+  }
+
   // --------------------------------------------------------------- upgrades
 
-  private buildUpgrades(): void {
-    const panel = this.panel('upgrades');
-    const sheet = el('div', 'sheet');
-
-    const head = el('div', 'sheet-head');
-    head.append(
-      button('Geri', 'ghost-btn', () => this.closeSub(), UI_SPRITES.back),
-      el('h2', undefined, 'Geliştirmeler'),
-    );
-    this.upgradeCoins = el('div', 'coin-badge');
-    head.appendChild(this.upgradeCoins);
-
+  private buildUpgradesPanel(): HTMLElement {
+    const panel = el('div', 'hub-panel');
     this.upgradeList = el('div', 'upgrade-list');
 
     const milestoneTitle = el('div', 'section-title', 'Kilitli — ileride skill tree ile açılacak');
@@ -383,35 +509,52 @@ export class Ui {
       milestoneList.appendChild(row);
     }
 
-    sheet.append(head, this.upgradeList, milestoneTitle, milestoneList);
-    panel.appendChild(sheet);
+    panel.append(this.upgradeList, milestoneTitle, milestoneList);
+    return panel;
   }
 
   private renderUpgrades(): void {
-    this.upgradeCoins.innerHTML = '';
-    this.upgradeCoins.append(img(UI_SPRITES.coin), el('span', undefined, `${this.state.coins}`));
+    this.hubCoins.innerHTML = '';
+    this.hubCoins.append(img(UI_SPRITES.coin), el('span', undefined, `${this.state.coins}`));
 
     this.upgradeList.innerHTML = '';
     for (const def of UPGRADES) {
       const level = this.state.upgrades[def.id];
       const maxed = level >= def.maxLevel;
+      const affordable = canAfford(this.state, def.id);
+      const cost = upgradeCost(def, level);
 
-      const row = el('div', 'upgrade-row');
-      const info = el('div', 'upgrade-info');
-      const nameRow = el('div', 'name');
-      nameRow.append(
-        el('span', undefined, def.name),
-        el('span', undefined, maxed ? 'MAX' : `Lv.${level}`),
+      const card = el('div', `upgrade-card${maxed ? ' maxed' : affordable ? ' affordable' : ''}`);
+
+      const head = el('div', 'upgrade-head');
+      const iconWrap = el('div', 'upgrade-icon');
+      iconWrap.appendChild(img(def.icon));
+      const titles = el('div', 'upgrade-titles');
+      titles.append(
+        el('div', 'upgrade-name', def.name),
+        el('div', 'upgrade-level', maxed ? 'MAX' : `Seviye ${level}`),
       );
+      head.append(iconWrap, titles);
+
+      // The number that actually decides the purchase: what changes if I buy.
+      const effect = el('div', 'upgrade-effect');
+      effect.append(el('span', 'effect-now', def.valueAt(level)));
+      if (!maxed) {
+        effect.append(el('span', 'effect-arrow', '→'), el('span', 'effect-next', def.valueAt(level + 1)));
+      }
+
       const bar = el('div', 'upgrade-bar');
       const fill = el('div');
       fill.style.width = `${Math.min(100, (level / def.maxLevel) * 100)}%`;
       bar.appendChild(fill);
-      info.append(nameRow, el('div', 'desc', def.description), bar);
 
       const buy = el('button', 'buy-btn');
-      buy.disabled = maxed || !canAfford(this.state, def.id);
-      buy.textContent = maxed ? 'MAX' : `${upgradeCost(def, level)}`;
+      buy.disabled = maxed || !affordable;
+      if (maxed) {
+        buy.textContent = 'MAX';
+      } else {
+        buy.append(img(UI_SPRITES.coin), el('span', undefined, `${cost}`));
+      }
       buy.addEventListener('click', () => {
         if (buyUpgrade(this.state, def.id)) {
           playSfx('upgrade');
@@ -421,62 +564,165 @@ export class Ui {
         }
       });
 
-      row.append(img(def.icon), info, buy);
-      this.upgradeList.appendChild(row);
+      card.append(head, el('div', 'upgrade-desc', def.description), effect, bar, buy);
+      this.upgradeList.appendChild(card);
     }
   }
 
   // ------------------------------------------------------------- collection
 
-  private buildCollection(): void {
-    const panel = this.panel('collection');
-    const sheet = el('div', 'sheet');
+  private buildCollectionPanel(): HTMLElement {
+    const panel = el('div', 'hub-panel');
 
-    const head = el('div', 'sheet-head');
-    head.append(
-      button('Geri', 'ghost-btn', () => this.closeSub(), UI_SPRITES.back),
-      el('h2', undefined, 'Koleksiyon'),
-    );
-    this.collectionCount = el('div', 'coin-badge');
-    head.appendChild(this.collectionCount);
+    this.collectionFilters = el('div', 'filter-row');
+    for (const f of FILTERS) {
+      const btn = button(f.label, `filter-chip${f.locked ? ' locked' : ''}`, () => {
+        if (f.locked) return;
+        this.activeFilter = f.id;
+        this.renderCollection();
+      });
+      btn.dataset.filter = f.id;
+      if (f.locked) {
+        btn.disabled = true;
+        btn.title = 'Bu katman henüz açılmadı';
+      }
+      this.collectionFilters.appendChild(btn);
+    }
 
+    this.collectionCount = el('div', 'collection-count');
     this.collectionGrid = el('div', 'collection-grid');
-    sheet.append(head, this.collectionGrid);
-    panel.appendChild(sheet);
+    this.collectionDetail = el('div', 'collection-detail');
+
+    panel.append(this.collectionFilters, this.collectionCount, this.collectionGrid, this.collectionDetail);
+    return panel;
   }
 
   private renderCollection(): void {
+    this.hubCoins.innerHTML = '';
+    this.hubCoins.append(img(UI_SPRITES.coin), el('span', undefined, `${this.state.coins}`));
+
     const found = new Set(this.state.discovered);
-    this.collectionCount.textContent = `${found.size} / ${ITEMS.length}`;
+    const visible =
+      this.activeFilter === 'all'
+        ? ITEMS
+        : ITEMS.filter((i) => i.rarity === this.activeFilter);
+
+    const foundHere = visible.filter((i) => found.has(i.id)).length;
+    this.collectionCount.textContent = `${foundHere} / ${visible.length} keşfedildi`;
+
+    for (const btn of this.collectionFilters.children) {
+      btn.classList.toggle('active', (btn as HTMLElement).dataset.filter === this.activeFilter);
+    }
 
     this.collectionGrid.innerHTML = '';
-    for (const item of ITEMS) {
+    for (const item of visible) {
       const has = found.has(item.id);
       const slot = el('div', `collection-slot${has ? ` rarity-${item.rarity}` : ' locked'}`);
-      slot.title = has ? `${item.name} · ${item.value}` : '???';
       slot.appendChild(img(item.sprite));
+      if (!has) slot.appendChild(el('span', 'slot-lock', '?'));
+      if (this.selectedItemId === item.id) slot.classList.add('selected');
+      slot.addEventListener('click', () => {
+        playSfx('click');
+        this.selectedItemId = this.selectedItemId === item.id ? null : item.id;
+        this.renderCollection();
+      });
       this.collectionGrid.appendChild(slot);
     }
+
+    this.renderCollectionDetail(found);
+  }
+
+  private renderCollectionDetail(found: Set<string>): void {
+    this.collectionDetail.innerHTML = '';
+    const item = this.selectedItemId ? ITEM_INDEX.get(this.selectedItemId) : undefined;
+
+    if (!item) {
+      this.collectionDetail.appendChild(
+        el('div', 'detail-hint', 'Bir parçaya dokunarak ağırlığını ve değerini gör.'),
+      );
+      return;
+    }
+
+    const known = found.has(item.id);
+    const icon = el('div', `detail-icon rarity-${item.rarity}`);
+    icon.appendChild(img(item.sprite));
+    if (!known) icon.classList.add('locked');
+
+    const info = el('div', 'detail-info');
+    info.append(
+      el('div', 'detail-name', known ? item.name : 'Henüz bulunmadı'),
+      el('div', `detail-rarity r-${item.rarity}`, RARITY_LABEL[item.rarity]),
+    );
+
+    const stats = el('div', 'detail-stats');
+    stats.append(
+      this.detailStat('Ağırlık', known ? `${item.weight}` : '?'),
+      this.detailStat('Değer', known ? `${item.value}` : '?'),
+    );
+
+    this.collectionDetail.append(icon, info, stats);
+  }
+
+  private detailStat(label: string, value: string): HTMLElement {
+    const node = el('div', 'detail-stat');
+    node.append(el('span', undefined, label), el('strong', undefined, value));
+    return node;
   }
 
   // --------------------------------------------------------------- settings
 
-  private buildSettings(): void {
-    const panel = this.panel('settings');
-    const sheet = el('div', 'sheet narrow');
+  private buildSettingsPanel(): HTMLElement {
+    const panel = el('div', 'hub-panel');
 
-    const head = el('div', 'sheet-head');
-    head.append(
-      button('Geri', 'ghost-btn', () => this.closeSub(), UI_SPRITES.back),
-      el('h2', undefined, 'Ayarlar'),
+    // --- sound
+    const sound = this.settingsSection('Ses');
+    this.soundBtn = button('', 'toggle-row', () => this.toggleSound());
+    sound.appendChild(this.soundBtn);
+
+    const volumeRow = el('div', 'slider-row');
+    this.volumeSlider = el('input') as HTMLInputElement;
+    this.volumeSlider.type = 'range';
+    this.volumeSlider.min = '0';
+    this.volumeSlider.max = '100';
+    this.volumeSlider.value = `${Math.round(this.state.sfxVolume * 100)}`;
+    const volumeValue = el('span', 'slider-value', `${this.volumeSlider.value}%`);
+    this.volumeSlider.addEventListener('input', () => {
+      const v = Number(this.volumeSlider.value) / 100;
+      this.state.sfxVolume = v;
+      setSfxVolume(v);
+      volumeValue.textContent = `${this.volumeSlider.value}%`;
+    });
+    // Preview and persist once the drag ends, not on every pixel of movement.
+    const commitVolume = (): void => {
+      saveState(this.state);
+      playSfx('collect');
+    };
+    this.volumeSlider.addEventListener('change', commitVolume);
+    volumeRow.append(el('span', 'slider-label', 'Efekt Seviyesi'), this.volumeSlider, volumeValue);
+    sound.appendChild(volumeRow);
+
+    // --- visuals
+    const visuals = this.settingsSection('Görüntü');
+    visuals.appendChild(
+      this.toggleRow('Parçacık Efektleri', this.state.particles, (on) => {
+        this.state.particles = on;
+        saveState(this.state);
+        this.onParticlesChanged?.(on);
+      }),
     );
 
-    this.soundBtn = button('', 'big-btn alt', () => this.toggleSound());
-    this.updateSoundLabel();
-
-    const list = el('div', 'settings-list');
-    list.append(
-      this.soundBtn,
+    // --- device
+    const device = this.settingsSection('Cihaz');
+    if ('vibrate' in navigator) {
+      device.appendChild(
+        this.toggleRow('Titreşim', this.state.haptics, (on) => {
+          this.state.haptics = on;
+          saveState(this.state);
+          if (on) navigator.vibrate?.(20);
+        }),
+      );
+    }
+    device.append(
       button('Ana Menüye Dön', 'big-btn alt', () => this.onBackToMenu?.()),
       button('İlerlemeyi Sıfırla', 'danger-btn', () => this.confirmReset()),
     );
@@ -484,11 +730,37 @@ export class Ui {
     const note = el(
       'div',
       'settings-note',
-      'İlerleme bu cihazın tarayıcısında saklanır. Sıfırlarsan para, geliştirmeler ve koleksiyon silinir.',
+      'İlerleme bu cihazın tarayıcısında saklanır. Sıfırlarsan para, geliştirmeler ve koleksiyon silinir; ses ve görüntü tercihlerin kalır.',
     );
 
-    sheet.append(head, list, note);
-    panel.appendChild(sheet);
+    panel.append(sound, visuals, device, note);
+    this.updateSoundLabel();
+    return panel;
+  }
+
+  private settingsSection(title: string): HTMLElement {
+    const section = el('div', 'settings-section');
+    section.appendChild(el('div', 'section-title', title));
+    return section;
+  }
+
+  private toggleRow(label: string, initial: boolean, onChange: (on: boolean) => void): HTMLElement {
+    const row = el('button', 'toggle-row') as HTMLButtonElement;
+    const knob = el('span', 'switch');
+    let value = initial;
+    const apply = (): void => {
+      row.classList.toggle('on', value);
+      knob.classList.toggle('on', value);
+    };
+    row.append(el('span', undefined, label), knob);
+    row.addEventListener('click', () => {
+      value = !value;
+      apply();
+      playSfx('click');
+      onChange(value);
+    });
+    apply();
+    return row;
   }
 
   private toggleSound(): void {
@@ -500,8 +772,11 @@ export class Ui {
   }
 
   private updateSoundLabel(): void {
-    this.soundBtn.querySelector('span')!.textContent = isAudioEnabled() ? 'Ses: Açık' : 'Ses: Kapalı';
-    this.soundBtn.classList.toggle('off', !isAudioEnabled());
+    const on = isAudioEnabled();
+    this.soundBtn.innerHTML = '';
+    this.soundBtn.append(el('span', undefined, 'Ses'), el('span', `switch${on ? ' on' : ''}`));
+    this.soundBtn.classList.toggle('on', on);
+    this.volumeSlider.disabled = !on;
   }
 
   private confirmReset(): void {
@@ -512,27 +787,6 @@ export class Ui {
 
   // ------------------------------------------------------------------- tick
 
-  tick(): void {
-    if (this.current !== 'playing') return;
-
-    this.coinLabel.textContent = `${this.state.coins}`;
-    this.renderShots();
-
-    const t = this.run.timeRemaining;
-    this.timeLabel.textContent = fmtTime(t);
-    this.timePill.classList.toggle('warn', t <= 5 && t > 3);
-    this.timePill.classList.toggle('critical', t <= 3);
-
-    const load = this.run.magnet.load;
-    this.loadLabel.textContent = load > 0 ? `${load} (-${Math.round(this.run.loadPenalty() * 100)}%)` : '0';
-
-    if (this.run.magnet.carried.length !== this.haulCount) {
-      this.haulCount = this.run.magnet.carried.length;
-      this.renderHaul();
-    }
-  }
-
-  /** Pips beat "2/5" for reading at a glance mid-shot. */
   private renderShots(): void {
     if (this.pipCount !== this.run.totalShots) {
       this.pipCount = this.run.totalShots;
@@ -547,14 +801,27 @@ export class Ui {
     }
   }
 
-  /** Flashes the haul strip when something lands in it. */
-  pulseHaul(): void {
-    this.haulStrip.classList.remove('pulse');
-    void this.haulStrip.offsetWidth;
-    this.haulStrip.classList.add('pulse');
+  tick(): void {
+    if (this.current !== 'playing') return;
+
+    this.coinLabel.textContent = `${this.state.coins}`;
+    this.renderShots();
+
+    const t = this.run.timeRemaining;
+    this.timeLabel.textContent = fmtTime(t);
+    this.timePill.classList.toggle('warn', t <= 5 && t > 3);
+    this.timePill.classList.toggle('critical', t <= 3);
+
+    const load = this.run.magnet.load;
+    this.loadLabel.textContent =
+      load > 0 ? `${load} (-${Math.round(this.run.loadPenalty() * 100)}%)` : '0';
+
+    if (this.run.magnet.carried.length !== this.haulCount) {
+      this.haulCount = this.run.magnet.carried.length;
+      this.renderHaul();
+    }
   }
 
-  /** Called when a shift starts so the strip does not carry over stale loot. */
   resetHaul(): void {
     this.haulCount = -1;
     this.pipCount = -1;
@@ -563,4 +830,3 @@ export class Ui {
 }
 
 const ITEM_INDEX = new Map(ITEMS.map((i) => [i.id, i]));
-

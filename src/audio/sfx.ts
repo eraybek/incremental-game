@@ -35,10 +35,16 @@ const BANK = {
 
 export type SfxName = keyof typeof BANK;
 
-const MASTER_VOLUME = 0.32;
+/** Ceiling for the user-facing volume slider, so 100% is loud but not harsh. */
+const MASTER_VOLUME = 0.4;
 
 let enabled = true;
+let volume = 0.8;
 let unlocked = false;
+
+function applyVolume(): void {
+  ZZFX.volume = enabled ? MASTER_VOLUME * volume : 0;
+}
 
 /** Consecutive pickups raise the pitch, then decay back — the standard trick
  *  that makes a stream of collections feel like a run rather than a list. */
@@ -51,9 +57,10 @@ const COMBO_MAX = 12;
  * Browsers start the audio context suspended until a real user gesture, so the
  * first touch anywhere resumes it. Called once at boot.
  */
-export function initAudio(startEnabled: boolean): void {
+export function initAudio(startEnabled: boolean, startVolume = 0.8): void {
   enabled = startEnabled;
-  ZZFX.volume = enabled ? MASTER_VOLUME : 0;
+  volume = Math.min(1, Math.max(0, startVolume));
+  applyVolume();
 
   const unlock = (): void => {
     if (unlocked) return;
@@ -68,7 +75,12 @@ export function initAudio(startEnabled: boolean): void {
 
 export function setAudioEnabled(on: boolean): void {
   enabled = on;
-  ZZFX.volume = on ? MASTER_VOLUME : 0;
+  applyVolume();
+}
+
+export function setSfxVolume(v: number): void {
+  volume = Math.min(1, Math.max(0, v));
+  applyVolume();
 }
 
 export function isAudioEnabled(): boolean {

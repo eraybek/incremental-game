@@ -156,9 +156,17 @@ Her karede, menzil içindeki her obje `PULL_SPEED × (power / weight) × falloff
 
 ### Ekran akışı
 
-`Ana Menü → Vardiya intro ("VARDİYA N") → Oyun → Vardiya sonu raporu` döngüsü `src/main.ts` içindeki akış kontrolü ve `src/ui/ui.ts` içindeki ekran yöneticisi ile kurulu. Geliştirme, Koleksiyon ve Ayarlar alt ekranları nereden açıldıysa oraya geri döner. Ayarlar ekranında ana menüye dönüş ve ilerleme sıfırlama var.
+`Ana Menü → Vardiya intro ("VARDİYA N") → Oyun → Vardiya sonu raporu` döngüsü `src/main.ts` içindeki akış kontrolü ve `src/ui/ui.ts` içindeki ekran yöneticisi ile kurulu.
 
-Vardiya sonu raporu ürün bazlı kırılım gösterir: hangi üründen kaç adet, adet başına kaç para, satır toplamı ve genel toplam. Uzun raporlarda tablo kayar, toplam ve butonlar sabit kalır.
+**Hub:** Geliştirmeler, Koleksiyon ve Ayarlar ayrı modallar değil, altında sekme çubuğu olan tek bir tam ekran hub'ın sekmeleri. Aralarında geçiş tek dokunuş; geri butonu hub'a nereden girildiyse oraya (menü veya vardiya raporu) döner.
+
+**Vardiya raporu:** solda toplanan hurdanın yığın görseli (phyllotaxis spirali, sırayla düşerek), sağda karar için gereken sayılar — toplanan parça, nadir bonusu, kalan süre, kalan atış ve sayarak artan toplam kazanç. Ürün bazlı kırılım katlanır bir bölümde: isteyen açar, istemeyen butonlara doğrudan ulaşır.
+
+**Geliştirme kartları** mevcut değerin yanında satın alınca ne olacağını da gösterir (`7.0 güç → 7.8 güç`). Incremental oyunda alım kararını veren sayı bu. Alınabilir kartlar yeşil kenarlıkla öne çıkar, maksimuma ulaşanlar geri çekilir.
+
+**Koleksiyon** rarity filtreleriyle gezilir (Epik/Efsanevi kilitli sekme olarak görünür — o katmanda henüz parça yok), bir parçaya dokununca ağırlığı ve değeri alttaki detay çubuğunda görünür.
+
+**Ayarlar** bölümlere ayrıldı: Ses (açma/kapama + efekt seviyesi kaydırıcısı), Görüntü (parçacık efektleri), Cihaz (titreşim — yalnızca cihaz destekliyorsa, ana menü, ilerleme sıfırlama). Yalnızca gerçekten çalışan kontroller var; müzik ve dil seçenekleri o sistemler gelmeden eklenmedi.
 
 ### HUD yerleşimi
 
