@@ -162,6 +162,10 @@ export const CLEAN_REWARDS: CleanReward[] = [
 ];
 
 // --- Yukseltmeler ---------------------------------------------------------
+//
+// v2: yukseltmeler "aktif" (elle oynarken parlar) ve "idle" (biraksan da
+// calisir) diye ikiye ayrilir. Boylece hem oynayanin hem birakanin harcayacak
+// anlamli seyi olur.
 
 export function lineDepthAt(level: number): number {
   return 14 + Math.pow(level, 1.9) * 3.2 + level * 7;
@@ -169,74 +173,90 @@ export function lineDepthAt(level: number): number {
 
 export function autoCastDelayAt(level: number): number {
   if (level <= 0) return Infinity;
-  return Math.max(0.3, 4.5 * Math.pow(0.87, level - 1));
+  return Math.max(0.35, 4.5 * Math.pow(0.86, level - 1));
 }
 
-export function waitTimeAt(level: number): number {
-  return Math.max(0.35, 2.6 * Math.pow(0.9, level));
+/** Kancanin inis/cekme hizi (m/sn). Aktif kol: manuel donguyu kisaltir. */
+export function dropSpeedAt(level: number): number {
+  return 60 + level * 24;
 }
 
-export function reelSpeedAt(level: number): number {
-  return 26 + level * 9;
+/** Yatay yakalama toleransi (normalize -1..1 olcegi). Aktif kol. */
+export function grabRadiusAt(level: number): number {
+  return 0.10 + level * 0.020;
 }
 
-export function biteChanceAt(level: number): number {
-  return Math.min(0.97, 0.55 + level * 0.05);
+/** Denizdeki balik yogunlugu carpani; nadir sansini da hafifce artirir. */
+export function densityAt(level: number): number {
+  return 1 + level * 0.12;
 }
 
+/** Cop cikma orani; Yem yukseltmesi dusurur. */
 export function junkChanceAt(level: number): number {
-  return Math.max(0.04, 0.32 * Math.pow(0.9, level));
+  return Math.max(0.03, 0.28 * Math.pow(0.9, level));
+}
+
+/** Seri (tempo) carpaninin tavani. Temel ×3; Usta Balikci acar. */
+export function comboCapAt(level: number): number {
+  return 3 + level * 0.5;
 }
 
 export const UPGRADES: Upgrade[] = [
   {
     id: 'line', name: 'Misina', sprite: { sheet: 'gear', i: 12 },
-    desc: '{v} derinliğe kadar atabiliyorsun.',
-    baseCost: 25, growth: 1.36, maxLevel: 120,
+    desc: '{v} derinliğe kadar inebiliyorsun.',
+    baseCost: 25, growth: 1.36, maxLevel: 40, track: 'idle',
     valueAt: (l) => `${Math.round(lineDepthAt(l))} m`,
     revealAt: 0,
   },
   {
-    id: 'bait', name: 'Yem', sprite: { sheet: 'gear', i: 14 },
-    desc: 'Isırma şansı {v}, çöp daha az çıkıyor.',
-    baseCost: 40, growth: 1.44, maxLevel: 80,
-    valueAt: (l) => `%${Math.round(biteChanceAt(l) * 100)}`,
+    id: 'reel', name: 'Kanca Hızı', sprite: { sheet: 'gear', i: 5 },
+    desc: 'Kanca {v} hızında inip çıkıyor.',
+    baseCost: 60, growth: 1.3, maxLevel: 60, track: 'active',
+    valueAt: (l) => `${dropSpeedAt(l)} m/sn`,
     revealAt: 0,
   },
   {
-    id: 'float', name: 'Şamandıra', sprite: { sheet: 'gear', i: 20 },
-    desc: 'Balık ortalama {v} sonra vuruyor.',
-    baseCost: 70, growth: 1.32, maxLevel: 60,
-    valueAt: (l) => `${waitTimeAt(l).toFixed(2)} sn`,
-    revealAt: 40,
+    id: 'radius', name: 'Kapma Yarıçapı', sprite: { sheet: 'gear', i: 20 },
+    desc: 'Kancanın çevresindeki balıkları {v} genişlikte kapıyorsun.',
+    baseCost: 90, growth: 1.4, maxLevel: 40, track: 'active',
+    valueAt: (l) => `×${(grabRadiusAt(l) / grabRadiusAt(0)).toFixed(2)}`,
+    revealAt: 60,
   },
   {
-    id: 'reel', name: 'Makara', sprite: { sheet: 'gear', i: 5 },
-    desc: 'Misina {v} hızında sarılıyor.',
-    baseCost: 120, growth: 1.3, maxLevel: 120,
-    valueAt: (l) => `${reelSpeedAt(l)} m/sn`,
-    revealAt: 90,
+    id: 'bait', name: 'Yem', sprite: { sheet: 'gear', i: 14 },
+    desc: 'Balık {v} daha yoğun, çöp daha az.',
+    baseCost: 50, growth: 1.44, maxLevel: 60, track: 'idle',
+    valueAt: (l) => `×${densityAt(l).toFixed(2)}`,
+    revealAt: 0,
   },
   {
     id: 'market', name: 'Pazarlık', sprite: { sheet: 'obj', i: 12 },
     desc: 'Tüm satışlar {v} değerinde.',
-    baseCost: 320, growth: 1.55, maxLevel: 100,
+    baseCost: 320, growth: 1.55, maxLevel: 100, track: 'idle',
     valueAt: (l) => `×${(1 + l * 0.5).toFixed(1)}`,
     revealAt: 220,
   },
   {
     id: 'rods', name: 'Ekstra Olta', sprite: { sheet: 'gear', i: 1 },
-    desc: 'Aynı anda {v} olta atabiliyorsun.',
-    baseCost: 350, growth: 4.2, maxLevel: 7,
+    desc: 'Aynı anda {v} olta kullanabiliyorsun.',
+    baseCost: 350, growth: 4.2, maxLevel: 7, track: 'idle',
     valueAt: (l) => `${1 + l}`,
     revealAt: 180,
   },
   {
     id: 'autocast', name: 'Otomatik Olta', sprite: { sheet: 'gear', i: 35 },
-    desc: 'Oltalar {v} kendiliğinden atılıyor.',
-    baseCost: 2500, growth: 1.62, maxLevel: 40,
+    desc: 'Odakta olmayan oltalar {v} kendiliğinden iniyor.',
+    baseCost: 2500, growth: 1.62, maxLevel: 40, track: 'idle',
     valueAt: (l) => (l === 0 ? 'kapalı' : `${autoCastDelayAt(l).toFixed(2)} sn'de bir`),
     revealAt: 1500,
+  },
+  {
+    id: 'master', name: 'Usta Balıkçı', sprite: { sheet: 'gear', i: 31 },
+    desc: 'Seri (tempo) çarpanı {v} tavana kadar çıkıyor.',
+    baseCost: 4000, growth: 1.7, maxLevel: 30, track: 'active',
+    valueAt: (l) => `×${comboCapAt(l).toFixed(1)}`,
+    revealAt: 3000,
   },
 ];
 

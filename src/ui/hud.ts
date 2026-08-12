@@ -23,6 +23,8 @@ export class Hud {
   private scrim = $('scrim');
   private openBtn = $('panel-open');
   private dot = $('panel-dot');
+  private comboPill = $('combo-pill');
+  private comboVal = $('combo-val');
 
   /** Yukseltme karti govdeleri; her cerceve yeniden kurulmasin diye saklanir. */
   private cards = new Map<UpgradeId, {
@@ -89,7 +91,7 @@ export class Hud {
   private buildGear(): void {
     for (const u of UPGRADES) {
       const root = document.createElement('button');
-      root.className = 'card';
+      root.className = `card track-${u.track}`;
       root.type = 'button';
       root.innerHTML = `
         <span class="card-icon" style="${spriteCss(u.sprite, 34)}"></span>
@@ -252,6 +254,16 @@ export class Hud {
     this.rate.textContent = `${fmt(this.game.incomePerSecond)}/sn`;
     this.depth.textContent = fmtDepth(this.game.maxDepth);
     this.zoneLabel.textContent = zoneFor(this.game.maxDepth).name;
+
+    // Tempo carpani: yalnizca 1'in belirgin uzerindeyken goster.
+    const combo = this.game.combo;
+    if (combo > 1.05) {
+      this.comboPill.hidden = false;
+      this.comboVal.textContent = `×${combo.toFixed(1)}`;
+      this.comboPill.style.setProperty('--heat', String(Math.min(1, (combo - 1) / 2)));
+    } else {
+      this.comboPill.hidden = true;
+    }
 
     // Panel her cerceve degil, saniyede ~6 kez tazelenir.
     this.frame++;

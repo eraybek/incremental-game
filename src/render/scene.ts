@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BOBBER_SPRITE, FISH, ZONES } from '../game/content';
-import { BITE_WINDOW, clamp } from '../game/state';
+import { clamp } from '../game/state';
 import type { Game } from '../game/state';
 import type { Rod } from '../game/types';
 import { loadSheets, sheetTexture, type SpriteRef } from './atlas';
@@ -11,10 +11,9 @@ import { loadSheets, sheetTexture, type SpriteRef } from './atlas';
  */
 const SURFACE_Y = 0.5;
 const BOTTOM_Y = -0.5;
-/** Oltanin geldigi nokta: ekranin sol ust disi. */
-const ORIGIN = new THREE.Vector2(-0.62, 0.60);
+/** Normalize x (-1..1) -> dunya x carpani. Balik ve kanca ayni olcegi paylasir. */
+const X_MAP = 0.9;
 
-const DECOR_COUNT = 16;
 const BUBBLE_COUNT = 90;
 
 /** Bir sprite icin duz, isiktan etkilenmeyen dikdortgen. */
@@ -30,16 +29,6 @@ function spriteMesh(ref: SpriteRef, size: number): THREE.Mesh {
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
   mesh.scale.setScalar(size);
   return mesh;
-}
-
-interface Decor {
-  mesh: THREE.Mesh;
-  depth: number;
-  speed: number;
-  /** Yuzme salinimi icin faz. */
-  phase: number;
-  /** Bu sprite hangi derinlik icin secildi; bant degisince yenilenir. */
-  band: number;
 }
 
 interface FloatText {
@@ -62,13 +51,16 @@ export class SceneView {
   private waterMat!: THREE.ShaderMaterial;
   private beams!: THREE.Mesh;
   private bubbles!: THREE.Points;
-  private decor: Decor[] = [];
+
+  /** Yuzen balik/cop gorselleri; game.swimmers ile esitlenir. */
+  private swimmerMeshes: THREE.Mesh[] = [];
 
   private lines: THREE.Line[] = [];
-  private bobbers: THREE.Mesh[] = [];
+  private hooks: THREE.Mesh[] = [];
   private catches: THREE.Mesh[] = [];
-  private aimRing!: THREE.Mesh;
-  private aimFill!: THREE.Mesh;
+  private grabRings: THREE.Mesh[] = [];
+  private boats: THREE.Mesh[] = [];
+  private focusRing!: THREE.Mesh;
 
   private floats: FloatText[] = [];
   private floatLayer: HTMLElement;
@@ -81,7 +73,6 @@ export class SceneView {
       antialias: false,
       powerPreference: 'high-performance',
     });
-    // Mobilde piksel yogunlugunu sinirla; pixel art zaten keskin.
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.camera = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5, -100, 100);
     this.camera.position.z = 10;
@@ -92,8 +83,7 @@ export class SceneView {
     this.buildWater();
     this.buildBeams();
     this.buildBubbles();
-    this.buildDecor();
-    this.buildAim();
+    this.buildFocusRing();
     this.resize();
   }
 
@@ -113,9 +103,9 @@ export class SceneView {
     return t * this.visibleDepth;
   }
 
-  /** rod.x (-1..1) -> dunya x. */
-  rodToWorldX(x: number): number {
-    return x * this.halfWidth * 0.82;
+  /** Normalize x (-1..1) -> dunya x. */
+  normToWorldX(x: number): number {
+    return x * this.halfWidth * X_MAP;
   }
 
   /** Ekran pikselinden nisan noktasi (x: -1..1, depth: metre). */
@@ -126,7 +116,7 @@ export class SceneView {
     const worldX = (nx - 0.5) * this.aspect;
     const worldY = 0.5 - ny;
     return {
-      x: clamp(worldX / (this.halfWidth * 0.82), -1, 1),
+      x: clamp(worldX / (this.halfWidth * X_MAP), -1, 1),
       depth: Math.max(0, this.yToDepth(worldY)),
     };
   }
@@ -143,13 +133,11 @@ export class SceneView {
   // --- Sahne kurulumu ------------------------------------------------------
 
   private buildWater(): void {
-    // ZONES renklerini shader'a sabit dizi olarak tasi.
     const colors = ZONES.map((z) => new THREE.Color(z.water));
     this.waterMat = new THREE.ShaderMaterial({
       depthTest: false,
       uniforms: {
         uTime: { value: 0 },
-        // Erisilebilir derinligin gorunur derinlige orani.
         uReach: { value: 0.85 },
         uC0: { value: colors[0] },
         uC1: { value: colors[1] },
@@ -157,7 +145,6 @@ export class SceneView {
         uC3: { value: colors[3] },
         uC4: { value: colors[4] },
         uC5: { value: colors[5] },
-        /** Gorunur derinligin hangi mutlak derinlige denk geldigi. */
         uDepthSpan: { value: 40 },
       },
       vertexShader: `
@@ -171,7 +158,6 @@ export class SceneView {
         uniform float uTime, uReach, uDepthSpan;
         uniform vec3 uC0, uC1, uC2, uC3, uC4, uC5;
 
-        // Mutlak derinligi bant renklerine cevirir.
         vec3 zoneColor(float d) {
           if (d < 25.0)   return mix(uC0, uC1, smoothstep(0.0, 25.0, d));
           if (d < 70.0)   return mix(uC1, uC2, smoothstep(25.0, 70.0, d));
@@ -182,26 +168,15 @@ export class SceneView {
         }
 
         void main() {
-          float t = 1.0 - vUv.y;               // 0 = yuzey, 1 = en alt
+          float t = 1.0 - vUv.y;
           float depth = t * uDepthSpan;
           vec3 col = zoneColor(depth);
-
-          // Isik yuzeye yakin yerde daha parlak.
           col *= mix(1.18, 0.72, smoothstep(0.0, 0.55, t));
-
-          // Erisilemez bolge: misinanin yetmedigi derinlik kararir.
           float beyond = smoothstep(uReach, uReach + 0.04, t);
           col = mix(col, col * 0.35, beyond);
-
-          // Erisim sinirinda ince bir esik cizgisi.
           float edge = smoothstep(0.006, 0.0, abs(t - uReach));
           col += edge * 0.20;
-
-          // Cok hafif dikey dalgalanma; su durgun gorunmesin.
           col += 0.012 * sin(vUv.x * 26.0 + uTime * 0.7 + t * 8.0);
-
-          // Yuzey: ekranin en ustunde hareketli bir parlama ve kopuk seridi.
-          // Gokyuzu cizilmedigi icin "su yuzeyi burada" isaretini bu veriyor.
           float wave = 0.004 * sin(vUv.x * 34.0 - uTime * 1.6)
                      + 0.003 * sin(vUv.x * 61.0 + uTime * 2.3);
           float surf = smoothstep(0.030 + wave, 0.0, t);
@@ -209,7 +184,6 @@ export class SceneView {
           float foam = smoothstep(0.012 + wave, 0.004 + wave, t)
                      * smoothstep(0.0, 0.006, t);
           col += foam * 0.35;
-
           gl_FragColor = vec4(col, 1.0);
         }`,
     });
@@ -234,7 +208,6 @@ export class SceneView {
         varying vec2 vUv;
         uniform float uTime;
         void main() {
-          // Egik, yavasca kayan isik huzmeleri.
           float x = vUv.x * 6.0 + vUv.y * 2.2 + uTime * 0.10;
           float beams = pow(max(0.0, sin(x * 3.14159)), 12.0);
           float fade = smoothstep(0.0, 0.35, vUv.y) * smoothstep(1.0, 0.55, vUv.y);
@@ -271,79 +244,58 @@ export class SceneView {
     this.scene.add(this.bubbles);
   }
 
-  private buildDecor(): void {
-    for (let i = 0; i < DECOR_COUNT; i++) {
-      const mesh = spriteMesh(FISH[0].sprite, 0.05);
-      mesh.renderOrder = -16;
-      (mesh.material as THREE.MeshBasicMaterial).opacity = 0.55;
-      (mesh.material as THREE.MeshBasicMaterial).transparent = true;
-      this.scene.add(mesh);
-      this.decor.push({
-        mesh,
-        depth: 0,
-        speed: (Math.random() < 0.5 ? -1 : 1) * (0.02 + Math.random() * 0.05),
-        phase: Math.random() * Math.PI * 2,
-        band: -1,
-      });
-      // Ilk konum resize()'da ekran genisligine gore dagitilir.
-      mesh.position.x = Number.NaN;
-    }
-  }
-
-  /** Dekor baliklarini gorunur genislige yayar; dar ekranda bosluk kalmasin. */
-  private spreadDecor(): void {
-    const limit = this.halfWidth + 0.1;
-    for (const d of this.decor) {
-      if (Number.isNaN(d.mesh.position.x)) {
-        d.mesh.position.x = (Math.random() - 0.5) * 2 * limit;
-      }
-    }
-  }
-
-  private buildAim(): void {
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff, transparent: true, opacity: 0.75, depthTest: false,
+  private buildFocusRing(): void {
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffe08a, transparent: true, opacity: 0.9, depthTest: false,
     });
-    this.aimRing = new THREE.Mesh(new THREE.RingGeometry(0.030, 0.034, 32), ringMat);
-    this.aimRing.renderOrder = 20;
-    this.aimRing.visible = false;
-    this.scene.add(this.aimRing);
-
-    const fillMat = new THREE.MeshBasicMaterial({
-      color: 0xffe08a, transparent: true, opacity: 0.85, depthTest: false,
-    });
-    this.aimFill = new THREE.Mesh(new THREE.CircleGeometry(0.028, 32), fillMat);
-    this.aimFill.renderOrder = 21;
-    this.aimFill.visible = false;
-    this.scene.add(this.aimFill);
+    this.focusRing = new THREE.Mesh(new THREE.RingGeometry(0.026, 0.032, 24), mat);
+    this.focusRing.renderOrder = 22;
+    this.focusRing.visible = false;
+    this.scene.add(this.focusRing);
   }
 
-  /** Olta sayisi degistiginde misina/samandira nesnelerini esitler. */
+  /** Olta sayisi degistiginde hat/kanca/yakalama nesnelerini esitler. */
   private syncRods(count: number): void {
     while (this.lines.length < count) {
       const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(),
+        new THREE.Vector3(), new THREE.Vector3(),
       ]);
       const line = new THREE.Line(
         geo,
-        new THREE.LineBasicMaterial({ color: 0xeaf4fa, transparent: true, opacity: 0.55, depthTest: false }),
+        new THREE.LineBasicMaterial({ color: 0xeaf4fa, transparent: true, opacity: 0.5, depthTest: false }),
       );
       line.renderOrder = 8;
       line.visible = false;
       this.scene.add(line);
       this.lines.push(line);
 
-      const bobber = spriteMesh(BOBBER_SPRITE, 0.038);
-      bobber.renderOrder = 10;
-      bobber.visible = false;
-      this.scene.add(bobber);
-      this.bobbers.push(bobber);
+      const hook = spriteMesh(BOBBER_SPRITE, 0.036);
+      hook.renderOrder = 10;
+      hook.visible = false;
+      this.scene.add(hook);
+      this.hooks.push(hook);
 
       const katch = spriteMesh(FISH[0].sprite, 0.06);
       katch.renderOrder = 11;
       katch.visible = false;
       this.scene.add(katch);
       this.catches.push(katch);
+
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x8fe0ff, transparent: true, opacity: 0.35, depthTest: false,
+      });
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.0, 28), ringMat);
+      ring.renderOrder = 9;
+      ring.visible = false;
+      this.scene.add(ring);
+      this.grabRings.push(ring);
+
+      // Tekne: yuzeyde ufak bir gorsel imleç (techizat sprite'i).
+      const boat = spriteMesh({ sheet: 'gear', i: 1 }, 0.05);
+      boat.renderOrder = 12;
+      boat.visible = false;
+      this.scene.add(boat);
+      this.boats.push(boat);
     }
   }
 
@@ -367,32 +319,25 @@ export class SceneView {
     this.water.position.set(0, (SURFACE_Y + BOTTOM_Y) / 2, 0);
     this.beams.scale.copy(this.water.scale);
     this.beams.position.copy(this.water.position);
-
-    this.spreadDecor();
   }
 
   // --- Cerceve -------------------------------------------------------------
 
-  render(game: Game, dt: number, aim: { active: boolean; x: number; depth: number; progress: number }): void {
+  render(game: Game, dt: number): void {
     this.time += dt;
     this.syncRods(game.rods.length);
 
-    // Gorunur derinlik, erisilebilir derinligi yumusak takip eder.
     const target = game.maxDepth * 1.18;
     this.visibleDepth += (target - this.visibleDepth) * Math.min(1, dt * 2.2);
 
     this.waterMat.uniforms.uTime.value = this.time;
     this.waterMat.uniforms.uDepthSpan.value = this.visibleDepth;
-    this.waterMat.uniforms.uReach.value = clamp(
-      (game.maxDepth / this.visibleDepth) * ((SURFACE_Y - BOTTOM_Y) / (SURFACE_Y - BOTTOM_Y)),
-      0.05, 0.995,
-    );
+    this.waterMat.uniforms.uReach.value = clamp(game.maxDepth / this.visibleDepth, 0.05, 0.995);
     (this.beams.material as THREE.ShaderMaterial).uniforms.uTime.value = this.time;
 
     this.updateBubbles(dt);
-    this.updateDecor(game, dt);
+    this.updateSwimmers(game);
     this.updateRods(game);
-    this.updateAim(aim);
     this.updateFloats(dt);
 
     this.renderer.render(this.scene, this.camera);
@@ -413,84 +358,107 @@ export class SceneView {
     pos.needsUpdate = true;
   }
 
-  private updateDecor(game: Game, dt: number): void {
-    const reach = game.maxDepth;
-    for (let i = 0; i < this.decor.length; i++) {
-      const d = this.decor[i];
-      // Sprite'i oyuncunun ulasabildigi derinlige gore sec; bant degisince yenile.
-      const band = Math.floor(Math.log2(Math.max(2, reach)));
-      if (d.band !== band) {
-        d.band = band;
-        d.depth = Math.random() * reach * 1.05;
-        const pool = game.speciesAt(d.depth);
-        const pick = pool[Math.floor(Math.random() * pool.length)] ?? FISH[0];
-        const mat = d.mesh.material as THREE.MeshBasicMaterial;
+  /** Yuzen balik/cop gorsellerini game.swimmers'a gore konumlar. */
+  private updateSwimmers(game: Game): void {
+    // Havuzu esitle.
+    while (this.swimmerMeshes.length < game.swimmers.length) {
+      const mesh = spriteMesh(FISH[0].sprite, 0.05);
+      mesh.renderOrder = -14;
+      this.scene.add(mesh);
+      this.swimmerMeshes.push(mesh);
+    }
+    for (let i = 0; i < this.swimmerMeshes.length; i++) {
+      const mesh = this.swimmerMeshes[i];
+      const s = game.swimmers[i];
+      if (!s) { mesh.visible = false; continue; }
+      const want = s.species.sprite;
+      const key = `${want.sheet}:${want.i}`;
+      if (mesh.userData.spriteKey !== key) {
+        mesh.userData.spriteKey = key;
+        const mat = mesh.material as THREE.MeshBasicMaterial;
         mat.map?.dispose();
-        mat.map = sheetTexture(pick.sprite);
+        mat.map = sheetTexture(want);
         mat.needsUpdate = true;
-        d.mesh.scale.setScalar(0.035 + pick.size * 0.022);
       }
-      d.mesh.position.x += d.speed * dt;
-      const limit = this.halfWidth + 0.12;
-      if (d.mesh.position.x > limit) d.mesh.position.x = -limit;
-      if (d.mesh.position.x < -limit) d.mesh.position.x = limit;
-      // Sprite'lar saga bakiyor; yon degisince yatay cevir.
-      d.mesh.scale.x = Math.abs(d.mesh.scale.x) * (d.speed > 0 ? 1 : -1);
-      const bob = Math.sin(this.time * 0.8 + d.phase) * 0.008;
-      d.mesh.position.y = this.depthToY(d.depth) + bob;
-      d.mesh.visible = d.mesh.position.y < SURFACE_Y - 0.01;
+      const bob = Math.sin(this.time * 0.9 + s.phase) * 0.008;
+      const y = this.depthToY(s.depth) + bob;
+      mesh.position.set(this.normToWorldX(s.x), y, 0);
+      const size = 0.036 + s.species.size * 0.022;
+      // Sprite'lar saga bakiyor; sola giderken yatay cevir.
+      mesh.scale.set(size * (s.vx < 0 ? -1 : 1), size, 1);
+      mesh.visible = y < SURFACE_Y - 0.01;
     }
   }
 
   private updateRods(game: Game): void {
+    this.focusRing.visible = false;
     for (let i = 0; i < this.lines.length; i++) {
       const rod = game.rods[i];
       const line = this.lines[i];
-      const bobber = this.bobbers[i];
+      const hook = this.hooks[i];
       const katch = this.catches[i];
-      if (!rod || rod.phase === 'idle') {
-        line.visible = false;
-        bobber.visible = false;
-        katch.visible = false;
+      const ring = this.grabRings[i];
+      const boat = this.boats[i];
+      if (!rod) {
+        line.visible = hook.visible = katch.visible = ring.visible = boat.visible = false;
         continue;
       }
 
-      const pos = this.rodPosition(rod);
-      line.visible = true;
-      bobber.visible = true;
+      const bx = this.normToWorldX(rod.homeX);
+      const hx = this.normToWorldX(rod.hookX);
 
-      // Samandira suda hafifce salinir; isirmada sert titrer.
-      let wobble = Math.sin(this.time * 2.4 + i) * 0.004;
-      if (rod.phase === 'bite') {
-        wobble = Math.sin(this.time * 40) * 0.012;
+      // Tekne her zaman yuzeyde gorunur.
+      boat.visible = true;
+      boat.position.set(bx, SURFACE_Y - 0.03 + Math.sin(this.time * 1.6 + i) * 0.006, 0);
+
+      // Odak halkasi: en son manuel odaklanan oltanin teknesinde.
+      if (i === game.focusIndex) {
+        this.focusRing.visible = true;
+        this.focusRing.position.copy(boat.position);
       }
-      bobber.position.set(pos.x, pos.y + wobble, 0);
-      bobber.scale.setScalar(rod.phase === 'bite' ? 0.046 : 0.038);
 
-      // Misina: kaynaktan samandiraya, hafif sarkmali.
+      if (rod.phase === 'idle') {
+        line.visible = hook.visible = katch.visible = ring.visible = false;
+        continue;
+      }
+
+      const hookY = this.depthToY(rod.depth);
+      const wobble = Math.sin(this.time * 2.4 + i) * 0.003;
+      hook.visible = true;
+      hook.position.set(hx, hookY + wobble, 0);
+
+      // Misina: tekneden (yuzey) kancaya (hook sutunu) uzanir.
       const geo = line.geometry as THREE.BufferGeometry;
       const p = geo.getAttribute('position') as THREE.BufferAttribute;
-      const ox = ORIGIN.x * this.aspect;
-      const midX = (ox + pos.x) / 2;
-      const midY = (ORIGIN.y + pos.y) / 2 - 0.03;
-      p.setXYZ(0, ox, ORIGIN.y, 0);
-      p.setXYZ(1, midX, midY, 0);
-      p.setXYZ(2, pos.x, pos.y + wobble, 0);
+      p.setXYZ(0, bx, SURFACE_Y - 0.02, 0);
+      p.setXYZ(1, hx, hookY, 0);
       p.needsUpdate = true;
       geo.computeBoundingSphere();
+      line.visible = true;
 
-      // Yakalanan sey sadece yukari sarilirken gorunur.
+      // Kapma yariçapi halkasi yalnizca inerken gorunur.
+      if (rod.phase === 'dropping') {
+        const r = game.grabRadius * this.halfWidth * X_MAP;
+        ring.visible = true;
+        ring.position.set(hx, hookY, 0);
+        ring.scale.setScalar(r);
+      } else {
+        ring.visible = false;
+      }
+
+      // Yakalanan sey yukari sarilirken gorunur.
       if (rod.phase === 'reeling' && rod.hooked) {
         const mat = katch.material as THREE.MeshBasicMaterial;
         const want = rod.hooked.species.sprite;
-        if (katch.userData.spriteKey !== `${want.sheet}:${want.i}`) {
-          katch.userData.spriteKey = `${want.sheet}:${want.i}`;
+        const key = `${want.sheet}:${want.i}`;
+        if (katch.userData.spriteKey !== key) {
+          katch.userData.spriteKey = key;
           mat.map?.dispose();
           mat.map = sheetTexture(want);
           mat.needsUpdate = true;
         }
         katch.visible = true;
-        katch.position.set(pos.x, pos.y - 0.035, 0);
+        katch.position.set(hx, hookY - 0.03, 0);
         const s = 0.03 + rod.hooked.species.size * 0.022;
         katch.scale.set(s, s, 1);
         katch.rotation.z = Math.sin(this.time * 9) * 0.25;
@@ -500,44 +468,8 @@ export class SceneView {
     }
   }
 
-  /** Oltanin su anki dunya konumu; ucus fazinda yay cizer. */
-  private rodPosition(rod: Rod): THREE.Vector2 {
-    const targetX = this.rodToWorldX(rod.x);
-    if (rod.phase === 'flying') {
-      const t = clamp(rod.timer / rod.flightTime, 0, 1);
-      const ox = ORIGIN.x * this.aspect;
-      // Quadratic bezier: kaynak -> tepe -> hedef yuzey noktasi.
-      const cx = (ox + targetX) / 2;
-      const cy = ORIGIN.y + 0.16;
-      const mt = 1 - t;
-      return new THREE.Vector2(
-        mt * mt * ox + 2 * mt * t * cx + t * t * targetX,
-        mt * mt * ORIGIN.y + 2 * mt * t * cy + t * t * SURFACE_Y,
-      );
-    }
-    return new THREE.Vector2(targetX, this.depthToY(rod.depth));
-  }
-
-  private updateAim(aim: { active: boolean; x: number; depth: number; progress: number }): void {
-    // Halka yalnizca oyuncu parmagini bekletince belirir; kisa dokunusta hic
-    // gorunmez ki hizli atis akici hissettirsin.
-    const show = aim.active && aim.progress > 0.01;
-    this.aimRing.visible = show;
-    this.aimFill.visible = show;
-    if (!show) return;
-    const x = this.rodToWorldX(aim.x);
-    const y = this.depthToY(aim.depth);
-    this.aimRing.position.set(x, y, 0);
-    this.aimFill.position.set(x, y, 0);
-    this.aimRing.scale.setScalar(1.25 - aim.progress * 0.25);
-    this.aimFill.scale.setScalar(clamp(aim.progress, 0, 1));
-    (this.aimRing.material as THREE.MeshBasicMaterial).opacity = 0.35 + aim.progress * 0.45;
-    (this.aimFill.material as THREE.MeshBasicMaterial).opacity = 0.25 + aim.progress * 0.55;
-  }
-
   // --- Yuzen yazilar -------------------------------------------------------
 
-  /** Dunya konumunda yukari suzulen bir yazi olusturur. */
   spawnFloat(text: string, className: string, worldX: number, worldY: number): void {
     const el = document.createElement('div');
     el.className = `float ${className}`;
@@ -546,16 +478,11 @@ export class SceneView {
     this.floats.push({ el, life: 0, x: worldX, y: worldY });
   }
 
-  /**
-   * Bir oltanin su anki konumunda yazi olusturur. Ayni anda birden fazla olta
-   * yuzeye vardiginda yazilar ust uste binmesin diye indekse gore kaydirilir.
-   */
+  /** Bir oltanin su anki kanca konumunda yazi olusturur. */
   spawnFloatAtRod(rod: Rod, text: string, className: string): void {
-    const p = this.rodPosition(rod);
-    const stagger = (rod.index % 3) * 0.035;
-    // Ust bar ile cakismasin diye yazilar yuzeyin biraz altindan baslar.
-    const y = Math.min(p.y, SURFACE_Y - 0.12) - stagger;
-    this.spawnFloat(text, className, p.x, y);
+    const wx = this.normToWorldX(rod.hookX);
+    const y = Math.min(this.depthToY(rod.depth), SURFACE_Y - 0.12) - (rod.index % 3) * 0.03;
+    this.spawnFloat(text, className, wx, y);
   }
 
   private updateFloats(dt: number): void {
@@ -571,31 +498,5 @@ export class SceneView {
         this.floats.splice(i, 1);
       }
     }
-  }
-
-  /** Isirma penceresinin gorsel ipucu icin: dokunusa en yakin isiran olta. */
-  nearestBiting(game: Game, clientX: number, clientY: number): Rod | null {
-    const biting = game.bitingRods();
-    if (biting.length === 0) return null;
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    // Ekranin kisa kenarinin %14'u kadar tolerans; mobilde parmak icin genis.
-    const tol = Math.min(rect.width, rect.height) * 0.14;
-    let best: Rod | null = null;
-    let bestD = Infinity;
-    for (const rod of biting) {
-      const p = this.rodPosition(rod);
-      const s = this.worldToScreen(p.x, p.y);
-      const d = Math.hypot(s.x - clientX, s.y - clientY);
-      if (d < bestD) {
-        bestD = d;
-        best = rod;
-      }
-    }
-    return bestD <= tol ? best : null;
-  }
-
-  /** Isirma penceresinin kalan orani; UI ipucu icin. */
-  static biteProgress(rod: Rod): number {
-    return clamp(1 - rod.timer / BITE_WINDOW, 0, 1);
   }
 }

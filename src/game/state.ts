@@ -6,41 +6,42 @@ import {
   UPGRADES,
   UPGRADE_BY_ID,
   autoCastDelayAt,
-  biteChanceAt,
+  comboCapAt,
   costOf,
+  densityAt,
+  dropSpeedAt,
+  grabRadiusAt,
   junkChanceAt,
   lineDepthAt,
-  reelSpeedAt,
-  waitTimeAt,
+  zoneFor,
 } from './content';
 import type {
-  Catchable, Fish, Hooked, Junk, LogEntry, Rod, SaveData, UpgradeId,
+  Catchable, Fish, Hooked, Junk, LogEntry, Rod, SaveData, Swimmer, UpgradeId,
 } from './types';
 
-const SAVE_KEY = 'derin-sular-save-v3';
-const SAVE_VERSION = 3;
+const SAVE_KEY = 'derin-sular-save-v4';
+const SAVE_VERSION = 4;
 
-/** Isirma penceresi: oyuncunun mukemmel cekis icin dokunma suresi. */
-export const BITE_WINDOW = 0.6;
-/** Oltanin havada gecirdigi sure. */
-const FLIGHT_TIME = 0.45;
+/** Balik/copun yatay dolasma siniri (normalize olcek). */
+const X_LIMIT = 1.12;
+/** Cevrimdisi kazanc tavani (saniye) — 10 saat. */
+const OFFLINE_CAP = 10 * 3600;
+/** Cevrimdisi verim: izlemeden kazanc, izleyerek kazancin yarisi. */
+const OFFLINE_RATE = 0.5;
 
-export interface LandEvent {
+export interface CatchEvent {
   rod: Rod;
   hooked: Hooked;
   money: number;
   perfect: boolean;
-  /** Bu tur ilk kez mi yakalandi. */
+  combo: number;
   firstTime: boolean;
-  /** Bu birey turun rekoru mu. */
   record: boolean;
 }
 
 export interface GameEvents {
-  onCast: (rod: Rod) => void;
-  onBite: (rod: Rod) => void;
-  onLand: (e: LandEvent) => void;
-  onEmpty: (rod: Rod) => void;
+  onCatch: (e: CatchEvent) => void;
+  onMiss: (rod: Rod) => void;
   onReward: (label: string) => void;
 }
 
@@ -57,15 +58,21 @@ export class Game {
   money = 0;
   totalEarned = 0;
   deepest = 0;
-  /** Toplanan cop sayisi. */
   cleanliness = 0;
   upgrades: Record<UpgradeId, number> = {
-    line: 0, bait: 0, reel: 0, float: 0, market: 0, rods: 0, autocast: 0,
+    line: 0, reel: 0, radius: 0, bait: 0, market: 0, rods: 0, autocast: 0, master: 0,
   };
   log: Record<string, LogEntry> = {};
   rods: Rod[] = [];
+  swimmers: Swimmer[] = [];
+  /** Tempo carpani (>=1). Isabetli manuel yakalayisla artar, zamanla duser. */
+  combo = 1;
+  /** En son manuel odaklanan olta; render odak halkasini burada cizer. */
+  focusIndex = 0;
   /** Otomatik atisin kullanacagi son nisan noktasi. */
   lastAim = { x: 0, depth: 0 };
+  /** Yuklemede hesaplanan cevrimdisi kazanc; UI bir kez okur. */
+  offlineEarned = 0;
 
   private events: GameEvents;
   private earnSamples: { t: number; amount: number }[] = [];
@@ -76,23 +83,7 @@ export class Game {
     this.load();
     this.syncRodCount();
     if (this.lastAim.depth === 0) this.lastAim.depth = this.maxDepth * 0.6;
-  }
-
-  // --- Temiz Deniz odulleri ------------------------------------------------
-
-  /** Esigi asilmis odullerin toplam etkisi. */
-  private cleanBonus(effect: 'value' | 'bite' | 'wait' | 'rod'): number {
-    let total = 0;
-    for (const r of CLEAN_REWARDS) {
-      if (r.effect === effect && this.cleanliness >= r.at) total += r.amount;
-    }
-    return total;
-  }
-
-  /** Bir sonraki Temiz Deniz odulu; HUD'da ilerleme cubugu icin. */
-  get nextCleanReward(): { at: number; label: string } | null {
-    for (const r of CLEAN_REWARDS) if (this.cleanliness < r.at) return r;
-    return null;
+    this.seedSwimmers();
   }
 
   // --- Turetilmis degerler -------------------------------------------------
@@ -101,24 +92,35 @@ export class Game {
     return lineDepthAt(this.upgrades.line);
   }
 
-  get reelSpeed(): number {
-    return reelSpeedAt(this.upgrades.reel);
+  /** Kancanin inis/cekme hizi (m/sn). */
+  get dropSpeed(): number {
+    return dropSpeedAt(this.upgrades.reel);
   }
 
-  get avgWaitTime(): number {
-    return waitTimeAt(this.upgrades.float) * (1 - this.cleanBonus('wait'));
+  /** Yatay yakalama toleransi (normalize olcek). */
+  get grabRadius(): number {
+    return grabRadiusAt(this.upgrades.radius);
   }
 
-  get biteChance(): number {
-    return Math.min(0.99, biteChanceAt(this.upgrades.bait) + this.cleanBonus('bite'));
+  /** Dikey yakalama bandi (metre); yariçapla ve derinlikle olceklenir. */
+  get grabDepth(): number {
+    return Math.max(4, this.maxDepth * 0.04 * (this.grabRadius / grabRadiusAt(0)));
   }
 
   get junkChance(): number {
     return junkChanceAt(this.upgrades.bait);
   }
 
+  get density(): number {
+    return densityAt(this.upgrades.bait);
+  }
+
   get sellMultiplier(): number {
     return (1 + this.upgrades.market * 0.5) * (1 + this.cleanBonus('value'));
+  }
+
+  get comboCap(): number {
+    return comboCapAt(this.upgrades.master);
   }
 
   get rodCount(): number {
@@ -139,6 +141,23 @@ export class Game {
     const window = Math.min(10, Math.max(1, now - first));
     return sum / window;
   }
+
+  // --- Temiz Deniz odulleri ------------------------------------------------
+
+  private cleanBonus(effect: 'value' | 'bite' | 'wait' | 'rod'): number {
+    let total = 0;
+    for (const r of CLEAN_REWARDS) {
+      if (r.effect === effect && this.cleanliness >= r.at) total += r.amount;
+    }
+    return total;
+  }
+
+  get nextCleanReward(): { at: number; label: string } | null {
+    for (const r of CLEAN_REWARDS) if (this.cleanliness < r.at) return r;
+    return null;
+  }
+
+  // --- Yukseltme ekonomisi -------------------------------------------------
 
   costFor(id: UpgradeId): number {
     return costOf(UPGRADE_BY_ID.get(id)!, this.upgrades[id]);
@@ -166,7 +185,7 @@ export class Game {
     return this.upgrades[id] > 0 || this.totalEarned >= u.revealAt;
   }
 
-  // --- Yakalama tablosu ----------------------------------------------------
+  // --- Balik havuzu --------------------------------------------------------
 
   private fishAt(depth: number): { fish: Fish; w: number }[] {
     const out: { fish: Fish; w: number }[] = [];
@@ -183,6 +202,17 @@ export class Game {
     return this.fishAt(depth).map((c) => c.fish);
   }
 
+  private avgValueAt(depth: number): number {
+    const pool = this.fishAt(depth);
+    let tot = 0;
+    let sum = 0;
+    for (const c of pool) {
+      tot += c.w;
+      sum += c.w * c.fish.value;
+    }
+    return tot > 0 ? sum / tot : 1;
+  }
+
   private pick<T>(items: { item: T; w: number }[]): T {
     let total = 0;
     for (const i of items) total += i.w;
@@ -194,21 +224,7 @@ export class Game {
     return items[items.length - 1].item;
   }
 
-  /** Bir atisin sonucunu belirler; null = bos dondu. */
-  private roll(depth: number): Hooked | null {
-    if (Math.random() > this.biteChance) return null;
-
-    if (Math.random() < this.junkChance) {
-      const junk = this.pick(JUNK.map((item) => ({ item, w: item.weight })));
-      return this.makeJunk(junk, depth);
-    }
-
-    const fish = this.pick(this.fishAt(depth).map((c) => ({ item: c.fish, w: c.w })));
-    return this.makeFish(fish);
-  }
-
   private makeFish(fish: Fish): Hooked {
-    // Log-normal: kucuk bireyler sik, dev bireyler nadir ama mumkun.
     const kg = Math.max(fish.baseWeight * 0.25, fish.baseWeight * Math.exp(randn() * 0.38));
     const ratio = kg / fish.baseWeight;
     return {
@@ -221,23 +237,74 @@ export class Game {
 
   private makeJunk(junk: Junk, depth: number): Hooked {
     if (!junk.treasure) return { species: junk, kg: 0, value: 0, huge: false };
-    // Hazine, o derinlikteki ortalama balik degerine baglanir ki gec oyunda
-    // anlamsizlasmasin.
-    const pool = this.fishAt(depth);
-    let total = 0;
-    let sum = 0;
-    for (const c of pool) {
-      total += c.w;
-      sum += c.w * c.fish.value;
-    }
-    const avg = total > 0 ? sum / total : 1;
+    const avg = this.avgValueAt(depth);
     const mult = TREASURE_MULTIPLIER[junk.id] ?? 10;
+    return { species: junk, kg: 0, value: avg * mult * this.sellMultiplier, huge: false };
+  }
+
+  // --- Yuzen balik/cop havuzu ----------------------------------------------
+
+  private get targetSwimmers(): number {
+    const bands = Math.max(1, zoneIndex(this.maxDepth) + 1);
+    return Math.min(30, Math.round((8 + bands * 1.6) * this.density));
+  }
+
+  private seedSwimmers(): void {
+    this.swimmers.length = 0;
+    const n = this.targetSwimmers;
+    for (let i = 0; i < n; i++) {
+      const s = this.spawnSwimmer();
+      // Ilk tohumda ekrana yay: kenardan degil, her yerde.
+      s.x = (Math.random() - 0.5) * 2 * X_LIMIT;
+      this.swimmers.push(s);
+    }
+  }
+
+  private spawnSwimmer(): Swimmer {
+    const depth = Math.random() * Math.max(14, this.maxDepth * 1.02);
+    const isJunkPick = Math.random() < this.junkChance * 0.6;
+    let species: Catchable;
+    if (isJunkPick) {
+      species = this.pick(JUNK.map((item) => ({ item, w: item.weight })));
+    } else {
+      species = this.pick(this.fishAt(depth).map((c) => ({ item: c.fish, w: c.w })));
+    }
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    // Derin balik daha hizli yuzer; hedeflemesi zorlasir.
+    const depthRatio = clamp(depth / Math.max(1, this.maxDepth), 0, 1);
+    const speed = 0.06 + depthRatio * 0.10 + Math.random() * 0.03;
     return {
-      species: junk,
-      kg: 0,
-      value: avg * mult * this.sellMultiplier,
-      huge: false,
+      species,
+      x: dir < 0 ? X_LIMIT : -X_LIMIT,
+      depth,
+      vx: dir * speed,
+      phase: Math.random() * Math.PI * 2,
     };
+  }
+
+  private updateSwimmers(dt: number): void {
+    // Sayiyi hedefe getir (yem/derinlik degisince).
+    while (this.swimmers.length < this.targetSwimmers) {
+      this.swimmers.push(this.spawnSwimmer());
+    }
+    while (this.swimmers.length > this.targetSwimmers) {
+      this.swimmers.pop();
+    }
+    for (const s of this.swimmers) {
+      s.x += s.vx * dt;
+      if (s.x > X_LIMIT && s.vx > 0) this.respawn(s);
+      else if (s.x < -X_LIMIT && s.vx < 0) this.respawn(s);
+    }
+  }
+
+  /** Ekrandan cikan balik yerine yenisini kenardan getir. */
+  private respawn(s: Swimmer): void {
+    const fresh = this.spawnSwimmer();
+    s.species = fresh.species;
+    s.depth = fresh.depth;
+    s.vx = fresh.vx;
+    s.x = fresh.x;
+    s.phase = fresh.phase;
   }
 
   // --- Oltalar -------------------------------------------------------------
@@ -247,55 +314,65 @@ export class Game {
       this.rods.push({
         index: this.rods.length,
         phase: 'idle',
-        x: 0, targetDepth: 0, depth: 0,
-        timer: 0, flightTime: FLIGHT_TIME,
-        hooked: null, perfect: false, autoTimer: 0,
+        homeX: 0, hookX: 0,
+        targetDepth: 0, depth: 0,
+        timer: 0,
+        hooked: null, perfect: false, manual: false, autoTimer: 0,
       });
     }
     this.rods.length = this.rodCount;
+    this.layoutRods();
   }
 
-  /**
-   * Bostaki bir oltayi verilen noktaya atar.
-   * `remember` false ise bu atis nisan noktasini gunceller sayilmaz; otomatik
-   * atislar boylece kendi yayilmalarini birbirine ekleyip kaymaz.
-   */
-  castAt(x: number, depth: number, remember = true): Rod | null {
-    const rod = this.rods.find((r) => r.phase === 'idle');
-    if (!rod) return null;
-    const target = Math.min(depth, this.maxDepth);
-    rod.phase = 'flying';
-    rod.x = x;
-    rod.targetDepth = target;
-    rod.depth = 0;
-    rod.timer = 0;
-    rod.hooked = null;
-    rod.perfect = false;
-    if (remember) this.lastAim = { x, depth: target };
-    this.events.onCast(rod);
-    return rod;
+  /** Oltalari genislige esit yay; hatlar ust uste binmesin. */
+  private layoutRods(): void {
+    const n = this.rods.length;
+    for (const rod of this.rods) {
+      rod.homeX = n === 1 ? 0 : (rod.index - (n - 1) / 2) * (1.7 / n);
+    }
   }
 
   hasIdleRod(): boolean {
     return this.rods.some((r) => r.phase === 'idle');
   }
 
-  /** Isirma penceresi acik olan oltalar; dokunus eslesmesi icin. */
-  bitingRods(): Rod[] {
-    return this.rods.filter((r) => r.phase === 'bite' && !r.perfect);
+  /**
+   * Dokunulan noktaya en yakin bostaki oltayi secip kancayi o sutunda (x)
+   * hedef derinlige indirir; odagi ona tasir (manuel).
+   */
+  dropAt(x: number, depth: number): Rod | null {
+    let best: Rod | null = null;
+    let bestD = Infinity;
+    for (const rod of this.rods) {
+      if (rod.phase !== 'idle') continue;
+      const d = Math.abs(rod.homeX - x);
+      if (d < bestD) { bestD = d; best = rod; }
+    }
+    if (!best) return null;
+    this.beginDrop(best, x, depth, true);
+    this.focusIndex = best.index;
+    this.lastAim = { x, depth };
+    return best;
   }
 
-  /** Oyuncunun mukemmel cekisi. */
-  strike(rod: Rod): void {
-    if (rod.phase !== 'bite' || rod.perfect) return;
-    rod.perfect = true;
+  private beginDrop(rod: Rod, x: number, depth: number, manual: boolean): void {
+    rod.phase = 'dropping';
+    rod.hookX = clamp(x, -1, 1);
+    rod.targetDepth = clamp(depth, 8, this.maxDepth);
+    rod.depth = 0;
     rod.timer = 0;
+    rod.hooked = null;
+    rod.perfect = false;
+    rod.manual = manual;
   }
 
   // --- Ana dongu -----------------------------------------------------------
 
   update(dt: number): void {
+    this.updateSwimmers(dt);
     for (const rod of this.rods) this.updateRod(rod, dt);
+    // Seri zamanla 1'e doner.
+    if (this.combo > 1) this.combo = Math.max(1, this.combo - dt * 0.35);
     this.saveTimer += dt;
     if (this.saveTimer >= 10) {
       this.saveTimer = 0;
@@ -312,60 +389,37 @@ export class Game {
         rod.autoTimer += dt;
         if (rod.autoTimer >= delay) {
           rod.autoTimer = 0;
-          // Otomatik atis son nisan noktasini kullanir. Oltalar indekslerine
-          // gore yayilir ki samandiralar ust uste binmesin.
+          // Otomatik oltalar son nisan noktasina, indekslerine gore yayilarak
+          // iner ki kancalar ust uste binmesin.
           const n = this.rods.length;
-          const spread = (rod.index - (n - 1) / 2) * 0.34;
-          const jitter = (Math.random() - 0.5) * 0.12;
-          this.castAt(clamp(this.lastAim.x + spread + jitter, -1, 1), this.lastAim.depth, false);
+          const spread = n > 1 ? (rod.index - (n - 1) / 2) * 0.28 : 0;
+          this.beginDrop(rod, this.lastAim.x + spread, this.lastAim.depth, false);
         }
         break;
       }
-      case 'flying': {
-        if (rod.timer >= rod.flightTime) {
-          rod.phase = 'sinking';
-          rod.timer = 0;
-        }
-        break;
-      }
-      case 'sinking': {
-        rod.depth += this.reelSpeed * dt;
-        if (rod.depth >= rod.targetDepth) {
-          rod.depth = rod.targetDepth;
-          rod.phase = 'waiting';
-          // Bekleme suresi ortalamanin etrafinda dagilir ki ritim mekanik olmasin.
-          rod.timer = -(this.avgWaitTime * (0.6 + Math.random() * 0.8));
-          if (rod.depth > this.deepest) this.deepest = rod.depth;
-        }
-        break;
-      }
-      case 'waiting': {
-        if (rod.timer >= 0) {
-          rod.hooked = this.roll(rod.targetDepth);
-          if (!rod.hooked) {
-            // Bos dondu: dogrudan sarmaya gec.
-            rod.phase = 'reeling';
-            rod.timer = 0;
-            this.events.onEmpty(rod);
-          } else {
-            rod.phase = 'bite';
-            rod.timer = 0;
-            this.events.onBite(rod);
-          }
-        }
-        break;
-      }
-      case 'bite': {
-        // Pencere dolunca balik yine de cekilir; kacirmanin cezasi yok.
-        if (rod.perfect || rod.timer >= BITE_WINDOW) {
+      case 'dropping': {
+        const prev = rod.depth;
+        rod.depth += this.dropSpeed * dt;
+        if (rod.depth > this.deepest) this.deepest = rod.depth;
+        // Inis yolu uzerinde (prev..depth) bir baliga carptik mi?
+        const hit = this.catchAlong(rod, prev, rod.depth);
+        if (hit) {
+          rod.hooked = hit.hooked;
+          rod.perfect = rod.manual && hit.aligned;
           rod.phase = 'reeling';
           rod.timer = 0;
+        } else if (rod.depth >= rod.targetDepth) {
+          // Hedefe ulastik, bir sey yok: bos don (affedici, ceza yok).
+          rod.depth = rod.targetDepth;
+          rod.phase = 'reeling';
+          rod.timer = 0;
+          this.events.onMiss(rod);
         }
         break;
       }
       case 'reeling': {
-        // Dolu misina biraz daha agir sarilir.
-        const speed = this.reelSpeed * (rod.hooked ? 0.8 : 1.4);
+        // Dolu kanca biraz daha agir sarilir.
+        const speed = this.dropSpeed * (rod.hooked ? 0.85 : 1.5);
         rod.depth -= speed * dt;
         if (rod.depth <= 0) {
           rod.depth = 0;
@@ -376,17 +430,51 @@ export class Game {
     }
   }
 
+  /**
+   * Kancanin (prev..now) derinlik araliginda, yatay yariçap icinde bir balik
+   * varsa onu yakalar ve havuzdan cikarir. En yakin hizalanani secer.
+   */
+  private catchAlong(rod: Rod, prev: number, now: number): { hooked: Hooked; aligned: boolean } | null {
+    const xTol = this.grabRadius;
+    const vTol = this.grabDepth;
+    let bestIdx = -1;
+    let bestDx = Infinity;
+    for (let i = 0; i < this.swimmers.length; i++) {
+      const s = this.swimmers[i];
+      const dx = Math.abs(s.x - rod.hookX);
+      if (dx > xTol) continue;
+      // Kanca bu baligin derinliginden gecti mi?
+      if (s.depth < prev - vTol || s.depth > now + vTol) continue;
+      if (dx < bestDx) { bestDx = dx; bestIdx = i; }
+    }
+    if (bestIdx < 0) return null;
+    const s = this.swimmers[bestIdx];
+    const depth = s.depth;
+    const hooked = s.species.kind === 'fish'
+      ? this.makeFish(s.species)
+      : this.makeJunk(s.species, depth);
+    // Yakalanani havuzdan cikar, yerine yeni bir yuzen getir.
+    this.respawn(s);
+    return { hooked, aligned: bestDx <= xTol * 0.4 };
+  }
+
   private land(rod: Rod): void {
     const hooked = rod.hooked;
+    const perfect = rod.perfect;
+    const manual = rod.manual;
     rod.phase = 'idle';
     rod.timer = 0;
     rod.autoTimer = 0;
     rod.hooked = null;
-    const perfect = rod.perfect;
     rod.perfect = false;
+    rod.manual = false;
     if (!hooked) return;
 
-    const money = hooked.value * (perfect ? 2 : 1);
+    // Isabetli manuel yakalayis seriyi besler.
+    if (perfect) this.combo = Math.min(this.comboCap, this.combo + 0.22);
+
+    const base = hooked.value * (perfect ? 2 : 1);
+    const money = base * this.combo;
     if (money > 0) this.earn(money);
 
     const species = hooked.species;
@@ -409,7 +497,7 @@ export class Game {
       }
     }
 
-    this.events.onLand({ rod, hooked, money, perfect, firstTime, record });
+    this.events.onCatch({ rod, hooked, money, perfect: perfect && manual, combo: this.combo, firstTime, record });
   }
 
   private earn(amount: number): void {
@@ -421,6 +509,24 @@ export class Game {
     while (this.earnSamples.length && this.earnSamples[0].t < cutoff) {
       this.earnSamples.shift();
     }
+  }
+
+  // --- Cevrimdisi kazanc ---------------------------------------------------
+
+  private applyOffline(savedAt: number): void {
+    if (this.upgrades.autocast <= 0) return;
+    const elapsed = clamp((Date.now() - savedAt) / 1000, 0, OFFLINE_CAP);
+    if (elapsed < 60) return;
+    const depth = this.lastAim.depth || this.maxDepth * 0.6;
+    // Kaba otomatik dongu: inis + cekis + kucuk bosluk.
+    const cycle = (2 * depth) / this.dropSpeed + Math.max(0.5, this.autoCastDelay);
+    const catchesPerSec = this.rodCount / Math.max(0.8, cycle);
+    const perCatch = this.avgValueAt(depth);
+    const amount = catchesPerSec * perCatch * OFFLINE_RATE * elapsed;
+    if (amount <= 0) return;
+    this.money += amount;
+    this.totalEarned += amount;
+    this.offlineEarned = amount;
   }
 
   // --- Kayit ---------------------------------------------------------------
@@ -467,6 +573,7 @@ export class Game {
       const lvl = data.upgrades?.[u.id] ?? 0;
       this.upgrades[u.id] = clamp(Math.floor(lvl), 0, u.maxLevel);
     }
+    if (data.savedAt) this.applyOffline(data.savedAt);
   }
 
   hardReset(): void {
@@ -484,4 +591,11 @@ export function isJunk(s: Catchable): s is Junk {
 
 export function clamp(n: number, lo: number, hi: number): number {
   return n < lo ? lo : n > hi ? hi : n;
+}
+
+/** Derinligin hangi bant indexinde oldugu (0..5). */
+function zoneIndex(depth: number): number {
+  const name = zoneFor(depth).name;
+  const names = ['Sığlık', 'Kıyı Suları', 'Alacakaranlık', 'Derin Mavi', 'Uçurum', 'Hadal Bölge'];
+  return Math.max(0, names.indexOf(name));
 }

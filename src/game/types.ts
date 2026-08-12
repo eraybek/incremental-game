@@ -2,12 +2,13 @@ import type { SpriteRef } from '../render/atlas';
 
 export type UpgradeId =
   | 'line'
-  | 'bait'
   | 'reel'
-  | 'float'
+  | 'radius'
+  | 'bait'
   | 'market'
   | 'rods'
-  | 'autocast';
+  | 'autocast'
+  | 'master';
 
 /** Yakalanabilen her seyin ortak govdesi. */
 export interface Species {
@@ -53,36 +54,57 @@ export interface Upgrade {
   baseCost: number;
   growth: number;
   maxLevel: number;
+  /** Aktif kol mu (elle oynarken parlar) yoksa idle kol mu. */
+  track: 'active' | 'idle';
   /** Seviyedeki degerin oyuncuya gosterilen metni. */
   valueAt: (level: number) => string;
   /** Bu toplam kazanca ulasilinca panelde belirir. */
   revealAt: number;
 }
 
-export type RodPhase = 'idle' | 'flying' | 'sinking' | 'waiting' | 'bite' | 'reeling';
+/**
+ * Kanca durumu. v2 mekanigi: kanca sabit yatay konumdan (homeX) dumduz iner,
+ * indigi yol uzerinde bir baliga carparsa onu kancalar, yukari ceker.
+ */
+export type RodPhase = 'idle' | 'dropping' | 'reeling';
 
 export interface Rod {
   index: number;
   phase: RodPhase;
-  /** Suyun yuzeyindeki yatay hedef (-1..1, ekranin yarim genisligi olceginde). */
-  x: number;
+  /** Teknenin (yuzeydeki) sabit yatay konumu (-1..1). */
+  homeX: number;
+  /** Bu inisin kanca sutunu (-1..1); dokunulan x. Kanca dumduz buradan iner. */
+  hookX: number;
   /** Kancanin hedef derinligi (metre). */
   targetDepth: number;
   /** Kancanin su anki derinligi (metre). */
   depth: number;
   /** Faza gore anlami degisen zamanlayici (saniye). */
   timer: number;
-  /** 'flying' fazinin toplam suresi; yayin ilerlemesini hesaplamak icin. */
-  flightTime: number;
-  /** Bu atisin sonucu; isirma aninda belirlenir. */
+  /** Bu inisin sonucu; carpma aninda belirlenir. */
   hooked: Hooked | null;
-  /** Oyuncu isirma penceresinde dokundu mu. */
+  /** Iyi hizalanmis (isabetli) yakalama; ×2 ve seri katkisi. */
   perfect: boolean;
+  /** Bu inis oyuncu tarafindan mi baslatildi (manuel = odak). */
+  manual: boolean;
   /** 'idle' fazinda otomatik atisa kalan sure. */
   autoTimer: number;
 }
 
-/** Bir atisin somut sonucu. */
+/** Denizde yuzen bir balik/cop; kancanin hedefi. */
+export interface Swimmer {
+  species: Catchable;
+  /** Yatay konum (-limit..limit); ekran genisligi olceginde. */
+  x: number;
+  /** Derinlik (metre). */
+  depth: number;
+  /** Yatay hiz (birim/sn); isareti yonu verir. */
+  vx: number;
+  /** Yuzme salinimi fazi. */
+  phase: number;
+}
+
+/** Bir yakalamanin somut sonucu. */
 export interface Hooked {
   species: Catchable;
   /** Baliksa yakalanan bireyin agirligi (kg); coplerde 0. */
