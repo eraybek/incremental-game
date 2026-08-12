@@ -1,6 +1,8 @@
 # Magnet Incremental
 
-Mobil-first, tek parmakla oynanan bir magnet-fizik / incremental oyunu. Tasarım detayları için [DESIGN.md](./DESIGN.md).
+Mobil-first, **yatay ekran (landscape)**, tek parmakla oynanan bir magnet-fizik / incremental oyunu. Tasarım detayları için [DESIGN.md](./DESIGN.md).
+
+Mıknatısı geri çekip bırakırsın; durduğu noktada manyetik pulse atar ve menzilindeki metal objeleri kendine çeker. Ağır objeler tek pulse'ta gelmez, birkaç atışta kademeli olarak yaklaşır. Toplanan yük mıknatısı ağırlaştırıp sonraki atışı kısaltır — süre ve atış hakkı biterken risk/ödül kararı budur.
 
 ## Geliştirme
 
@@ -9,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Tarayıcıda `http://localhost:5173` açılır. Mobil önizleme için tarayıcı dev tools'ta portrait bir cihaz simülasyonu kullanmanız önerilir.
+Tarayıcıda `http://localhost:5173` açılır. Mobil önizleme için tarayıcı dev tools'ta **yatay** bir cihaz simülasyonu (ör. 844×390) kullanın; portrait'te "telefonu yatay çevir" ekranı gösterilir.
 
 ## Build
 

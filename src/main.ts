@@ -15,7 +15,7 @@ const run = new RunManager(persistent);
 const scene = new Scene(canvas);
 const hud = new Hud(uiRoot, run, persistent);
 
-const assetPaths = [
+void preload([
   ...ITEMS.map((i) => i.sprite),
   ...UPGRADES.map((u) => u.icon),
   ...MILESTONES.map((m) => m.icon),
@@ -23,31 +23,31 @@ const assetPaths = [
   '/assets/hud/icon_hourglass.png',
   '/assets/hud/icon_magnet_small.png',
   '/assets/hud/icon_target.png',
-  '/assets/hud/icon_lightning.png',
   '/assets/buttons/btn_r2c1.png',
   '/assets/buttons/btn_r2c2.png',
-  '/assets/buttons/btn_r2c4.png',
-  '/assets/buttons/btn_r4c2.png',
   '/assets/buttons/btn_r4c3.png',
-  '/assets/environment/tile_r2c1.png',
-];
-void preload(assetPaths);
+  '/assets/environment/tile_r2c2.png',
+  '/assets/environment/tile_r6c1.png',
+  '/assets/environment/tile_r6c3.png',
+]);
 
 function resize(): void {
   const rect = wrap.getBoundingClientRect();
-  const w = Math.max(280, Math.round(rect.width));
-  const h = Math.max(400, Math.round(rect.height));
+  const w = Math.max(320, Math.round(rect.width));
+  const h = Math.max(240, Math.round(rect.height));
   scene.resize(w, h);
-  run.setArenaSize(w, h);
+  run.setCanvasSize(w, h);
 }
 
 window.addEventListener('resize', resize);
-window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+window.addEventListener('orientationchange', () => setTimeout(resize, 250));
 resize();
 
 const aim: AimState = { active: false, dirX: 0, dirY: -1, power01: 0 };
 let activePointerId: number | null = null;
-const MAX_PULL_FRACTION = 0.42;
+/** Full-power pull distance, measured against the short axis so the gesture is
+ *  the same length regardless of how wide the window is. */
+const PULL_FRACTION = 0.55;
 
 function pointerToLocal(e: PointerEvent): { x: number; y: number } {
   const rect = canvas.getBoundingClientRect();
@@ -55,12 +55,9 @@ function pointerToLocal(e: PointerEvent): { x: number; y: number } {
 }
 
 function updateAimFromPoint(px: number, py: number): void {
-  const mx = run.magnet.pos.x;
-  const my = run.magnet.pos.y;
-  let dx = mx - px;
-  let dy = my - py;
+  let dx = run.magnet.pos.x - px;
+  let dy = run.magnet.pos.y - py;
   const dist = Math.hypot(dx, dy);
-  const maxPull = run.arenaW * MAX_PULL_FRACTION;
   if (dist < 1) {
     dx = 0;
     dy = -1;
@@ -70,7 +67,7 @@ function updateAimFromPoint(px: number, py: number): void {
   }
   aim.dirX = dx;
   aim.dirY = dy;
-  aim.power01 = Math.min(1, dist / maxPull);
+  aim.power01 = Math.min(1, dist / (run.scaleRef * PULL_FRACTION));
 }
 
 canvas.addEventListener('pointerdown', (e) => {
@@ -99,18 +96,15 @@ canvas.addEventListener('pointerup', endAim);
 canvas.addEventListener('pointercancel', endAim);
 
 run.onPulse = (p) => scene.addPulseFx(p.x, p.y, p.radius);
-run.onRunEnd = (payout) => {
-  hud.showPayout(payout);
-  hud.setPlayButtonMode(true);
-};
+run.onBoardReady = () => scene.regenerateFloor();
+run.onRunEnd = (payout) => hud.showPayout(payout);
 
 hud.onRequestStart = () => {
   hud.hideStartScreen();
   run.startRun();
-  hud.setPlayButtonMode(true);
 };
 
-hud.showStartScreenIfIdle();
+hud.showStartScreenIfNew();
 
 let lastTime = performance.now();
 function loop(now: number): void {

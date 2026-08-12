@@ -129,14 +129,23 @@ Gerçek zamanlı enerji sistemi, reklam zorunluluğu, karmaşık crafting, karak
 
 ---
 
-## Implementasyon Notları (v0.1 prototip)
+## Implementasyon Notları (v0.2 prototip)
 
 Bu bölüm GDD'nin üzerine, mevcut kod tabanının GDD'yi nasıl karşıladığını özetler.
 
+### GDD'den bilinçli sapmalar
+
+- **Ekran yönü: landscape (GDD §2 portrait diyor).** Oyun yatay ekran için tasarlandı. Gerekçe: mıknatısın atış menzili sahayı bir sekmeyle geçebilecek kadar uzun, ve geniş board hem cluster okumayı hem de sekmeli atış planlamayı çok daha iyi gösteriyor. Portrait telefonlarda "telefonu yatay çevir" ekranı gösteriliyor.
+- **Mıknatıs başlangıç konumu rastgele (GDD sabit bir başlangıç varsaymıyordu ama prototip alt-orta kullanıyordu).** Her run mıknatıs sahada rastgele bir noktada başlar; board bu noktanın etrafında bir keepout bırakacak şekilde üretilir. Bu, her turun açılış kararını farklılaştırıyor.
+
+### Teknik
+
 - **Stack:** Vite + TypeScript + Canvas2D, framework'süz. DOM tabanlı HUD/modal'lar (`src/ui/hud.ts`) ve canvas tabanlı oyun sahnesi (`src/render/scene.ts`) ayrılmıştır.
-- **Fizik:** `src/game/magnet.ts` — impulse launch + sürtünme ile yavaşlama + duvar sekmesi (restitution 0.78).
-- **Çekim:** `src/game/run.ts` `doPulse()` — `requiredPulses = ceil(weight / power)` formülü ile GDD §5'teki kademeli çekimi birebir uygular.
-- **Load:** Taşınan objelerin toplam ağırlığı sonraki atışın hızını `loadPenalty()` ile azaltır; Load Efficiency upgrade'i bu cezayı düşürür.
+- **Fizik:** `src/game/magnet.ts` — impulse launch + sürtünme ile yavaşlama + duvar sekmesi. `stepBody()` hem canlı mıknatıs hem de nişan önizlemesi tarafından paylaşılır, böylece gösterilen yörünge gerçek yörüngedir (sekmeler dahil).
+- **Ölçekleme:** Tüm yarıçap ve menziller arenanın **kısa** kenarına (`scaleRef`), atış hızı ve sürtünme ise köşegene göre ölçeklenir. Böylece oyun 844×390 telefonda da 1280×720 masaüstünde de aynı hissi verir.
+- **Çekim:** `src/game/run.ts` `doPulse()` — `requiredPulses = ceil(weight / power)` formülü ile GDD §5'teki kademeli çekimi birebir uygular. Kaldırılamayan obje mesafenin `1/required` kadarını kat eder ve yeni yerinde kalır.
+- **Load:** Taşınan objelerin toplam ağırlığı sonraki atışın hızını `loadPenalty()` ile azaltır; HUD'da yüzde olarak canlı gösterilir. Load Efficiency upgrade'i bu cezayı düşürür.
 - **Rarity/Loot Quality:** `src/game/board.ts` `pickRarity()` — Loot Quality seviyesi arttıkça uncommon/rare ihtimali kayar (GDD §9).
 - **Milestone'lar (Moving Attraction, Live Drops, Time Slow, Extra Shot, Extra Time, Automation):** GDD §15'e göre ilk prototipte zorunlu değil; Upgrade ekranında kilitli/pasif liste olarak gösteriliyor, henüz fonksiyonel değil.
 - **Assetler:** `public/assets/` altında GDD ile birlikte gelen referans sprite sheet'inden otomatik arka plan temizleme + dilimleme ile çıkarılan placeholder sprite'lar kullanılıyor. Nihai/onaylı asset paketi geldiğinde bu klasörlerin içeriği değiştirilebilir; kod dosya yollarına göre çalıştığı için çoğu değişiklik sadece asset dosyalarının üzerine yazılmasını gerektirir.
+- **Arka plan:** Sprite sheet'te hazır bir zemin tile'ı tekrarlamak yerine sahne prosedürel çiziliyor — koyu çelik gradient, geniş zemin plakaları, düşük opaklıkta taş grain, yağ lekeleri, tavan ışığı ve vignette. Amaç collectible'ların sahnedeki en parlak şey olarak kalması.

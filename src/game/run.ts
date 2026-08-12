@@ -1,11 +1,7 @@
-import type { BoardObject, ItemDef, PersistentState } from './types';
-import { generateBoard } from './board';
-import { Magnet } from './magnet';
-import {
-  BASE_RUN_DURATION,
-  BASE_SHOTS,
-  ITEMS,
-} from './content';
+import type { BoardObject, ItemDef, PersistentState, Vec2 } from './types';
+import { generateBoard, randomMagnetStart } from './board';
+import { Magnet, stepBody, type ArenaRect } from './magnet';
+import { BASE_RUN_DURATION, BASE_SHOTS, ITEMS } from './content';
 import {
   loadEfficiency,
   launchMultiplier,
@@ -30,15 +26,20 @@ export interface PulseEvent {
   radius: number;
 }
 
-const BASE_MAX_SPEED_FACTOR = 2.6; // relative to arena width per second
-const BASE_FRICTION_FACTOR = 1.9; // relative to arena width per second^2
+/** Launch speed and deceleration scale with the arena diagonal so the feel of a
+ *  shot is identical on a phone in landscape and on a wide desktop window. */
+const SPEED_PER_DIAGONAL = 1.15;
+const DECEL_PER_DIAGONAL = 0.62;
 const MIN_LAUNCH_POWER = 0.12;
-const MAX_LOAD_PENALTY = 0.75;
+const MAX_LOAD_PENALTY = 0.72;
+
+/** Thickness of the decorative bay frame; physics walls sit on its inner edge. */
+export const FRAME_THICKNESS = 0.035;
 
 export class RunManager {
   state: PersistentState;
-  arenaW = 360;
-  arenaH = 640;
+  canvasW = 800;
+  canvasH = 420;
   magnet: Magnet;
   board: BoardObject[] = [];
   phase: RunPhase = 'idle';
@@ -49,51 +50,86 @@ export class RunManager {
 
   onPulse?: (e: PulseEvent) => void;
   onRunEnd?: (payout: PayoutResult) => void;
+  onBoardReady?: () => void;
 
   constructor(state: PersistentState) {
     this.state = state;
-    this.magnet = new Magnet(this.startPos(), 1);
+    this.magnet = new Magnet({ x: this.canvasW / 2, y: this.canvasH / 2 }, 20);
+    this.applyMetrics();
   }
 
-  private startPos() {
-    return { x: this.arenaW / 2, y: this.arenaH * 0.86 };
+  /** Short axis of the arena — every radius and range is measured against it so
+   *  the game reads the same whatever the window aspect ratio is. */
+  get scaleRef(): number {
+    return Math.min(this.canvasW, this.canvasH);
   }
 
-  setArenaSize(w: number, h: number): void {
-    this.arenaW = w;
-    this.arenaH = h;
-    this.magnet.radius = w * 0.05;
+  get frameSize(): number {
+    return Math.round(this.scaleRef * FRAME_THICKNESS);
+  }
+
+  arenaRect(): ArenaRect {
+    const f = this.frameSize;
+    return { minX: f, minY: f, maxX: this.canvasW - f, maxY: this.canvasH - f };
+  }
+
+  private applyMetrics(): void {
+    this.magnet.radius = this.scaleRef * 0.072;
+  }
+
+  setCanvasSize(w: number, h: number): void {
+    this.canvasW = w;
+    this.canvasH = h;
+    this.applyMetrics();
     if (this.phase !== 'playing') {
-      this.magnet.reset(this.startPos());
+      const rect = this.arenaRect();
+      this.magnet.reset({
+        x: (rect.minX + rect.maxX) / 2,
+        y: (rect.minY + rect.maxY) / 2,
+      });
     }
   }
 
-  private maxSpeed(): number {
-    return this.arenaW * BASE_MAX_SPEED_FACTOR * launchMultiplier(this.state);
+  private diagonal(): number {
+    return Math.hypot(this.canvasW, this.canvasH);
   }
 
-  private frictionBase(): number {
-    return this.arenaW * BASE_FRICTION_FACTOR;
+  private decel(): number {
+    return this.diagonal() * DECEL_PER_DIAGONAL;
+  }
+
+  private launchSpeed(power01: number): number {
+    const penalty = this.loadPenalty();
+    const full = this.diagonal() * SPEED_PER_DIAGONAL * launchMultiplier(this.state);
+    return Math.max(full * power01 * (1 - penalty), this.diagonal() * 0.18);
   }
 
   attractionRangePx(): number {
-    return this.arenaW * 0.2 * rangeMultiplier(this.state);
+    return this.scaleRef * 0.3 * rangeMultiplier(this.state);
   }
 
   loadPenalty(): number {
-    const raw = this.magnet.load * 0.045 * (1 - loadEfficiency(this.state));
+    const raw = this.magnet.load * 0.042 * (1 - loadEfficiency(this.state));
     return Math.min(MAX_LOAD_PENALTY, raw);
   }
 
   startRun(): void {
-    this.magnet.reset(this.startPos());
-    this.board = generateBoard(this.arenaW, this.arenaH, this.magnet.pos, lootQualityLevel(this.state));
+    const rect = this.arenaRect();
+    this.magnet.reset(randomMagnetStart(rect, this.magnet.radius));
+    this.board = generateBoard(
+      rect,
+      this.scaleRef,
+      this.magnet.pos,
+      this.magnet.radius,
+      lootQualityLevel(this.state),
+    );
     this.timeRemaining = BASE_RUN_DURATION;
     this.shotsRemaining = BASE_SHOTS;
     this.totalShots = BASE_SHOTS;
     this.lastPayout = null;
     this.phase = 'playing';
     this.state.totalRuns += 1;
+    this.onBoardReady?.();
   }
 
   canShoot(): boolean {
@@ -104,11 +140,33 @@ export class RunManager {
     if (!this.canShoot()) return false;
     const p = Math.max(0, Math.min(1, power01));
     if (p < MIN_LAUNCH_POWER) return false;
-    const penalty = this.loadPenalty();
-    const speed = this.maxSpeed() * p * (1 - penalty);
-    this.magnet.launch(dirX, dirY, Math.max(speed, this.arenaW * 0.4));
+    this.magnet.launch(dirX, dirY, this.launchSpeed(p));
     this.shotsRemaining -= 1;
     return true;
+  }
+
+  /** Replays the shot physics without mutating state, so the aim line shows the
+   *  real path including wall bounces. */
+  predictTrajectory(dirX: number, dirY: number, power01: number): Vec2[] {
+    const p = Math.max(0, Math.min(1, power01));
+    if (p < MIN_LAUNCH_POWER) return [];
+
+    const speed = this.launchSpeed(p);
+    const pos: Vec2 = { ...this.magnet.pos };
+    const vel: Vec2 = { x: dirX * speed, y: dirY * speed };
+    const rect = this.arenaRect();
+    const decel = this.decel();
+    const dt = 1 / 120;
+    const points: Vec2[] = [];
+
+    for (let i = 0; i < 400; i++) {
+      const stopped = stepBody(pos, vel, this.magnet.radius, rect, decel, dt);
+      if (i % 7 === 0) points.push({ x: pos.x, y: pos.y });
+      if (stopped) break;
+    }
+    // Mark where the magnet actually comes to rest — that is where the pulse fires.
+    points.push({ x: pos.x, y: pos.y });
+    return points;
   }
 
   private updateBoardEntrance(dt: number): void {
@@ -118,8 +176,8 @@ export class RunManager {
         obj.spawnDelay -= dt;
         continue;
       }
-      const dy = obj.targetPos.y - obj.pos.y;
       const dx = obj.targetPos.x - obj.pos.x;
+      const dy = obj.targetPos.y - obj.pos.y;
       const dist = Math.hypot(dx, dy);
       if (dist < 2) {
         obj.pos.x = obj.targetPos.x;
@@ -127,7 +185,7 @@ export class RunManager {
         obj.settled = true;
         continue;
       }
-      const speed = Math.max(dist * 6, this.arenaW * 0.6);
+      const speed = Math.max(dist * 6, this.scaleRef * 1.2);
       const step = Math.min(dist, speed * dt);
       obj.pos.x += (dx / dist) * step;
       obj.pos.y += (dy / dist) * step;
@@ -158,9 +216,12 @@ export class RunManager {
           weight: obj.item.weight,
         });
       } else {
+        // Too heavy to lift this pulse: drag it part of the way and leave it there.
         const frac = 1 / required;
         obj.pos.x += dx * frac;
         obj.pos.y += dy * frac;
+        obj.targetPos.x = obj.pos.x;
+        obj.targetPos.y = obj.pos.y;
       }
     }
 
@@ -174,7 +235,7 @@ export class RunManager {
     this.updateBoardEntrance(dt);
 
     const wasMoving = this.magnet.isMoving;
-    this.magnet.update(dt, { width: this.arenaW, height: this.arenaH }, this.frictionBase());
+    this.magnet.update(dt, this.arenaRect(), this.decel());
 
     if (wasMoving && this.magnet.justStopped) {
       this.doPulse();
@@ -194,10 +255,9 @@ export class RunManager {
   private endRun(): void {
     if (this.phase !== 'playing') return;
     const valueMult = lootValueMultiplier(this.state);
-    const items = this.magnet.carried.map((c) => {
-      const found = ALL_ITEMS_INDEX.get(c.itemId);
-      return found!;
-    });
+    const items = this.magnet.carried
+      .map((c) => ALL_ITEMS_INDEX.get(c.itemId))
+      .filter((i): i is ItemDef => i !== undefined);
 
     let total = 0;
     const newDiscoveries: ItemDef[] = [];

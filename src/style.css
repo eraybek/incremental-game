@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  --bg: #0a1027;
+  --bg: #080c1a;
   --panel: #131c3a;
   --panel-border: #2a3868;
   --text: #eef2ff;
@@ -30,16 +30,11 @@ html, body {
 #app {
   position: fixed;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-  width: 100vw;
 }
 
 #canvas-wrap {
-  position: relative;
-  flex: 1;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
   touch-action: none;
 }
 
@@ -55,86 +50,104 @@ html, body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  display: flex;
-  flex-direction: column;
   z-index: 10;
 }
 
+/* --- Landscape HUD: stats top-left, actions top-right, canvas full bleed --- */
+
 .hud-top {
-  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
-  gap: 8px;
-  padding: env(safe-area-inset-top, 10px) 10px 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) calc(env(safe-area-inset-right, 0px) + 10px) 0
+    calc(env(safe-area-inset-left, 0px) + 10px);
+}
+
+.hud-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
   flex-wrap: wrap;
+}
+
+.hud-group.actions {
+  pointer-events: auto;
+  justify-content: flex-end;
 }
 
 .stat-pill {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: var(--panel);
+  gap: 5px;
+  background: rgba(10, 15, 32, 0.82);
   border: 2px solid var(--panel-border);
-  border-radius: 10px;
-  padding: 4px 10px;
-  font-weight: 700;
-  font-size: 14px;
+  border-radius: 9px;
+  padding: 3px 9px;
+  font-weight: 800;
+  font-size: 13px;
+  backdrop-filter: blur(3px);
 }
 
 .stat-pill img {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   image-rendering: pixelated;
 }
 
-.hud-bottom {
-  pointer-events: auto;
-  margin-top: auto;
-  display: flex;
-  gap: 10px;
-  padding: 8px 10px calc(env(safe-area-inset-bottom, 10px) + 8px);
+.stat-pill.urgent {
+  border-color: var(--red);
+  color: #ffdada;
 }
 
-.btn {
-  flex: 1;
+.icon-btn {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: none;
-  border-radius: 12px;
-  padding: 12px 10px;
-  font-size: 16px;
+  gap: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 5px 11px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
   color: white;
-  box-shadow: 0 3px 0 rgba(0,0,0,0.35);
+  background: rgba(20, 26, 52, 0.86);
+  backdrop-filter: blur(3px);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
 }
 
-.btn:active {
+.icon-btn:active {
   transform: translateY(2px);
-  box-shadow: 0 1px 0 rgba(0,0,0,0.35);
+  box-shadow: none;
 }
 
-.btn img {
-  width: 22px;
-  height: 22px;
+.icon-btn img {
+  width: 18px;
+  height: 18px;
   image-rendering: pixelated;
 }
 
-.btn-green { background: #2f9e44; }
-.btn-purple { background: #6741d9; }
-.btn-amber { background: #d9800a; }
+.icon-btn.primary {
+  background: #2f9e44;
+  border-color: #58d16d;
+}
+
+/* --- Overlays --- */
 
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 8, 20, 0.72);
+  background: rgba(5, 8, 20, 0.78);
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: auto;
   z-index: 20;
-  padding: 16px;
+  padding: 12px;
 }
 
 .overlay.hidden {
@@ -144,16 +157,16 @@ html, body {
 .modal {
   background: var(--panel);
   border: 2px solid var(--panel-border);
-  border-radius: 16px;
-  width: min(420px, 100%);
-  max-height: 85vh;
+  border-radius: 14px;
+  width: min(560px, 100%);
+  max-height: calc(100dvh - 24px);
   overflow-y: auto;
-  padding: 16px;
+  padding: 14px;
 }
 
 .modal h2 {
-  margin: 0 0 4px;
-  font-size: 20px;
+  margin: 0 0 8px;
+  font-size: 18px;
 }
 
 .modal-close {
@@ -163,27 +176,40 @@ html, body {
   background: var(--red);
   border: none;
   border-radius: 8px;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   color: white;
   font-weight: 900;
   cursor: pointer;
+  z-index: 2;
+}
+
+/* Upgrades sit in two columns on wide screens so the list fits without scrolling. */
+.upgrade-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+@media (min-width: 620px) {
+  .upgrade-list {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .upgrade-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: rgba(255,255,255,0.03);
+  gap: 9px;
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--panel-border);
   border-radius: 10px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
+  padding: 7px 9px;
 }
 
 .upgrade-row img {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   image-rendering: pixelated;
   flex-shrink: 0;
 }
@@ -195,18 +221,20 @@ html, body {
 
 .upgrade-info .name {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   justify-content: space-between;
+  gap: 6px;
 }
 
 .upgrade-info .desc {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--text-dim);
+  line-height: 1.25;
 }
 
 .upgrade-bar {
-  height: 5px;
+  height: 4px;
   background: #060a19;
   border-radius: 3px;
   margin-top: 4px;
@@ -223,11 +251,12 @@ html, body {
   background: var(--green);
   border: none;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 7px 9px;
   font-weight: 800;
   color: #06210c;
   cursor: pointer;
-  min-width: 64px;
+  min-width: 54px;
+  font-size: 13px;
 }
 
 .buy-btn:disabled {
@@ -236,48 +265,72 @@ html, body {
   cursor: not-allowed;
 }
 
+.section-title {
+  font-size: 13px;
+  margin: 14px 0 6px;
+  color: var(--text-dim);
+  font-weight: 800;
+}
+
+.milestone-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+
+@media (min-width: 620px) {
+  .milestone-list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .milestone-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  opacity: 0.55;
-  padding: 6px 10px;
+  gap: 8px;
+  opacity: 0.5;
+  padding: 4px 8px;
 }
 
 .milestone-row img {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   image-rendering: pixelated;
+  flex-shrink: 0;
 }
 
 .collection-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  margin-top: 10px;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 620px) {
+  .collection-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
 }
 
 .collection-slot {
   aspect-ratio: 1;
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   border: 2px solid var(--panel-border);
-  border-radius: 10px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
 }
 
 .collection-slot img {
-  width: 70%;
-  height: 70%;
+  width: 72%;
+  height: 72%;
   object-fit: contain;
   image-rendering: pixelated;
 }
 
 .collection-slot.locked img {
   filter: brightness(0) saturate(0);
-  opacity: 0.3;
+  opacity: 0.28;
 }
 
 .rarity-common { border-color: #9aa0b4; }
@@ -287,24 +340,25 @@ html, body {
 .payout-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 10px 0;
+  gap: 5px;
+  margin: 8px 0;
 }
 
 .payout-item {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   border-radius: 8px;
   border: 2px solid var(--panel-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
+  position: relative;
 }
 
 .payout-item img {
-  width: 75%;
-  height: 75%;
+  width: 76%;
+  height: 76%;
   object-fit: contain;
   image-rendering: pixelated;
 }
@@ -313,15 +367,15 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 900;
   color: var(--accent);
-  margin: 10px 0;
+  margin: 6px 0;
 }
 
 .payout-total img {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   image-rendering: pixelated;
 }
 
@@ -331,7 +385,7 @@ html, body {
   right: -6px;
   background: var(--accent);
   color: #221800;
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 900;
   padding: 1px 4px;
   border-radius: 6px;
@@ -344,11 +398,12 @@ html, body {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   pointer-events: auto;
   z-index: 15;
   text-align: center;
-  padding: 20px;
+  padding: 16px;
+  background: rgba(6, 10, 24, 0.6);
 }
 
 .center-screen.hidden {
@@ -356,9 +411,10 @@ html, body {
 }
 
 .logo {
-  font-size: 30px;
+  font-size: clamp(24px, 5vw, 38px);
   font-weight: 900;
   letter-spacing: 1px;
+  line-height: 1.1;
 }
 
 .logo span {
@@ -368,14 +424,15 @@ html, body {
 .tagline {
   color: var(--text-dim);
   font-size: 13px;
-  max-width: 280px;
+  max-width: 420px;
+  line-height: 1.4;
 }
 
 .big-btn {
   border: none;
-  border-radius: 14px;
-  padding: 16px 36px;
-  font-size: 20px;
+  border-radius: 12px;
+  padding: 13px 34px;
+  font-size: 19px;
   font-weight: 900;
   color: white;
   background: #2f9e44;
@@ -386,4 +443,49 @@ html, body {
 .big-btn:active {
   transform: translateY(3px);
   box-shadow: 0 1px 0 #1c6b2c;
+}
+
+/* --- Portrait phones: the game is designed for landscape --- */
+
+#rotate-hint {
+  display: none;
+}
+
+@media (orientation: portrait) and (max-width: 900px) {
+  #rotate-hint {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: var(--bg);
+    text-align: center;
+    padding: 24px;
+  }
+
+  #rotate-hint .phone {
+    width: 56px;
+    height: 92px;
+    border: 4px solid var(--text);
+    border-radius: 10px;
+    animation: tilt 1.8s ease-in-out infinite;
+  }
+
+  #rotate-hint p {
+    font-size: 16px;
+    font-weight: 800;
+    margin: 0;
+  }
+
+  #rotate-hint small {
+    color: var(--text-dim);
+  }
+}
+
+@keyframes tilt {
+  0%, 40% { transform: rotate(0deg); }
+  60%, 100% { transform: rotate(-90deg); }
 }

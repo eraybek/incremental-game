@@ -14,9 +14,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 
 function fmtTime(seconds: number): string {
   const s = Math.max(0, Math.ceil(seconds));
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${m}:${r.toString().padStart(2, '0')}`;
+  return `0:${s.toString().padStart(2, '0')}`;
 }
 
 export class Hud {
@@ -27,8 +25,9 @@ export class Hud {
   private coinLabel!: HTMLElement;
   private timeLabel!: HTMLElement;
   private shotsLabel!: HTMLElement;
+  private loadLabel!: HTMLElement;
   private timePill!: HTMLElement;
-  private playBtn!: HTMLButtonElement;
+  private playLabel!: HTMLElement;
 
   private startScreen!: HTMLElement;
   private upgradeOverlay!: HTMLElement;
@@ -36,9 +35,10 @@ export class Hud {
   private payoutOverlay!: HTMLElement;
   private upgradeList!: HTMLElement;
   private collectionGrid!: HTMLElement;
+  private collectionCount!: HTMLElement;
   private payoutList!: HTMLElement;
-  private payoutTotal!: HTMLElement;
-  private payoutNewCount!: HTMLElement;
+  private payoutTotalValue!: HTMLElement;
+  private payoutNote!: HTMLElement;
 
   onRequestStart?: () => void;
 
@@ -47,7 +47,6 @@ export class Hud {
     this.run = run;
     this.state = state;
     this.buildTopBar();
-    this.buildBottomBar();
     this.buildStartScreen();
     this.buildUpgradeModal();
     this.buildCollectionModal();
@@ -55,53 +54,54 @@ export class Hud {
     this.refreshTop();
   }
 
+  private statPill(icon: string): { pill: HTMLElement; label: HTMLElement } {
+    const pill = el('div', 'stat-pill');
+    const img = el('img');
+    img.src = icon;
+    const label = el('span');
+    pill.append(img, label);
+    return { pill, label };
+  }
+
+  private actionButton(icon: string, text: string, primary = false): {
+    btn: HTMLButtonElement;
+    label: HTMLElement;
+  } {
+    const btn = el('button', `icon-btn${primary ? ' primary' : ''}`);
+    const img = el('img');
+    img.src = icon;
+    const label = el('span');
+    label.textContent = text;
+    btn.append(img, label);
+    return { btn, label };
+  }
+
   private buildTopBar(): void {
     const bar = el('div', 'hud-top');
 
-    const coinPill = el('div', 'stat-pill');
-    const coinImg = el('img');
-    coinImg.src = '/assets/hud/icon_coin.png';
-    this.coinLabel = el('span');
-    coinPill.append(coinImg, this.coinLabel);
+    const stats = el('div', 'hud-group');
+    const coin = this.statPill('/assets/hud/icon_coin.png');
+    this.coinLabel = coin.label;
+    const time = this.statPill('/assets/hud/icon_hourglass.png');
+    this.timePill = time.pill;
+    this.timeLabel = time.label;
+    const shots = this.statPill('/assets/hud/icon_target.png');
+    this.shotsLabel = shots.label;
+    const load = this.statPill('/assets/hud/icon_magnet_small.png');
+    this.loadLabel = load.label;
+    stats.append(coin.pill, time.pill, shots.pill, load.pill);
 
-    this.timePill = el('div', 'stat-pill');
-    const timeImg = el('img');
-    timeImg.src = '/assets/hud/icon_hourglass.png';
-    this.timeLabel = el('span');
-    this.timePill.append(timeImg, this.timeLabel);
+    const actions = el('div', 'hud-group actions');
+    const collection = this.actionButton('/assets/buttons/btn_r4c3.png', 'Koleksiyon');
+    collection.btn.addEventListener('click', () => this.openCollection());
+    const upgrade = this.actionButton('/assets/buttons/btn_r2c2.png', 'Yükselt');
+    upgrade.btn.addEventListener('click', () => this.openUpgrades());
+    const play = this.actionButton('/assets/buttons/btn_r2c1.png', 'Oyna', true);
+    this.playLabel = play.label;
+    play.btn.addEventListener('click', () => this.onRequestStart?.());
+    actions.append(collection.btn, upgrade.btn, play.btn);
 
-    const shotsPill = el('div', 'stat-pill');
-    const shotsImg = el('img');
-    shotsImg.src = '/assets/hud/icon_magnet_small.png';
-    this.shotsLabel = el('span');
-    shotsPill.append(shotsImg, this.shotsLabel);
-
-    bar.append(coinPill, this.timePill, shotsPill);
-    this.root.appendChild(bar);
-  }
-
-  private buildBottomBar(): void {
-    const bar = el('div', 'hud-bottom');
-
-    const collectionBtn = el('button', 'btn btn-purple');
-    const cImg = el('img');
-    cImg.src = '/assets/buttons/btn_r4c3.png';
-    collectionBtn.append(cImg, document.createTextNode('Koleksiyon'));
-    collectionBtn.addEventListener('click', () => this.openCollection());
-
-    const upgradeBtn = el('button', 'btn btn-amber');
-    const uImg = el('img');
-    uImg.src = '/assets/buttons/btn_r2c2.png';
-    upgradeBtn.append(uImg, document.createTextNode('Yükselt'));
-    upgradeBtn.addEventListener('click', () => this.openUpgrades());
-
-    this.playBtn = el('button', 'btn btn-green');
-    const pImg = el('img');
-    pImg.src = '/assets/buttons/btn_r2c1.png';
-    this.playBtn.append(pImg, document.createTextNode('Yeni Tur'));
-    this.playBtn.addEventListener('click', () => this.onRequestStart?.());
-
-    bar.append(collectionBtn, upgradeBtn, this.playBtn);
+    bar.append(stats, actions);
     this.root.appendChild(bar);
   }
 
@@ -111,7 +111,7 @@ export class Hud {
     logo.innerHTML = 'MAGNET <span>INCREMENTAL</span>';
     const tag = el('div', 'tagline');
     tag.textContent =
-      'Mıknatısı fırlat, metal objeleri çek, tur sonunda paraya çevir. Süre ve atış hakkın sınırlı — akıllı nişan al!';
+      'Mıknatısı geri çekip bırak, durduğu yerde metal objeleri kendine çeksin. Ağır objeler tek atışta gelmez — süren ve atış hakkın bitmeden en değerli yığını topla.';
     const btn = el('button', 'big-btn');
     btn.textContent = 'OYNA';
     btn.addEventListener('click', () => this.onRequestStart?.());
@@ -130,6 +130,9 @@ export class Hud {
     const body = el('div');
     modal.append(closeBtn, h2, body);
     overlay.appendChild(modal);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.classList.add('hidden');
+    });
     this.root.appendChild(overlay);
     return { overlay, body };
   }
@@ -137,30 +140,29 @@ export class Hud {
   private buildUpgradeModal(): void {
     const { overlay, body } = this.modalShell('Geliştirmeler');
     this.upgradeOverlay = overlay;
-    this.upgradeList = el('div');
-    const milestoneHeader = el('h2');
+    this.upgradeList = el('div', 'upgrade-list');
+
+    const milestoneHeader = el('div', 'section-title');
     milestoneHeader.textContent = 'Yakında (Kilitli)';
-    milestoneHeader.style.fontSize = '14px';
-    milestoneHeader.style.marginTop = '14px';
-    milestoneHeader.style.color = 'var(--text-dim)';
-    const milestoneList = el('div');
+    const milestoneList = el('div', 'milestone-list');
     for (const m of MILESTONES) {
       const row = el('div', 'milestone-row');
       const lock = el('img');
-      lock.src = '/assets/buttons/btn_r4c2.png';
+      lock.src = m.icon;
       const info = el('div');
       const name = el('div');
       name.style.fontWeight = '700';
-      name.style.fontSize = '13px';
+      name.style.fontSize = '12px';
       name.textContent = m.name;
       const desc = el('div');
-      desc.style.fontSize = '11px';
+      desc.style.fontSize = '10.5px';
       desc.style.color = 'var(--text-dim)';
       desc.textContent = m.description;
       info.append(name, desc);
       row.append(lock, info);
       milestoneList.appendChild(row);
     }
+
     body.append(this.upgradeList, milestoneHeader, milestoneList);
     this.renderUpgradeList();
   }
@@ -173,12 +175,13 @@ export class Hud {
       const row = el('div', 'upgrade-row');
       const img = el('img');
       img.src = def.icon;
+
       const info = el('div', 'upgrade-info');
       const nameRow = el('div', 'name');
       const nameSpan = el('span');
       nameSpan.textContent = def.name;
       const lvlSpan = el('span');
-      lvlSpan.textContent = `Lv.${level}${maxed ? ' (MAX)' : ''}`;
+      lvlSpan.textContent = maxed ? 'MAX' : `Lv.${level}`;
       nameRow.append(nameSpan, lvlSpan);
       const desc = el('div', 'desc');
       desc.textContent = def.description;
@@ -206,8 +209,10 @@ export class Hud {
   private buildCollectionModal(): void {
     const { overlay, body } = this.modalShell('Koleksiyon');
     this.collectionOverlay = overlay;
+    this.collectionCount = el('div', 'section-title');
+    this.collectionCount.style.margin = '0 0 8px';
     this.collectionGrid = el('div', 'collection-grid');
-    body.appendChild(this.collectionGrid);
+    body.append(this.collectionCount, this.collectionGrid);
   }
 
   private renderCollection(): void {
@@ -216,52 +221,70 @@ export class Hud {
     for (const item of ITEMS) {
       const found = discovered.has(item.id);
       const slot = el('div', `collection-slot${found ? ` rarity-${item.rarity}` : ' locked'}`);
+      slot.title = found ? `${item.name} · ${item.value}` : '???';
       const img = el('img');
       img.src = item.sprite;
       slot.appendChild(img);
       this.collectionGrid.appendChild(slot);
     }
+    this.collectionCount.textContent = `${discovered.size} / ${ITEMS.length} obje keşfedildi`;
   }
 
   private buildPayoutModal(): void {
     const { overlay, body } = this.modalShell('Tur Tamamlandı');
     this.payoutOverlay = overlay;
-    this.payoutTotal = el('div', 'payout-total');
+
+    const total = el('div', 'payout-total');
     const coinImg = el('img');
     coinImg.src = '/assets/hud/icon_coin.png';
-    const totalSpan = el('span');
-    totalSpan.id = 'payout-total-span';
-    this.payoutTotal.append(coinImg, totalSpan);
+    this.payoutTotalValue = el('span');
+    total.append(coinImg, this.payoutTotalValue);
 
-    this.payoutNewCount = el('div');
-    this.payoutNewCount.style.fontSize = '13px';
-    this.payoutNewCount.style.color = 'var(--accent)';
-    this.payoutNewCount.style.marginBottom = '6px';
+    this.payoutNote = el('div');
+    this.payoutNote.style.fontSize = '12.5px';
+    this.payoutNote.style.color = 'var(--accent)';
 
     this.payoutList = el('div', 'payout-list');
 
-    const continueBtn = el('button', 'big-btn');
-    continueBtn.style.width = '100%';
-    continueBtn.textContent = 'Devam Et';
-    continueBtn.addEventListener('click', () => {
+    const actions = el('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '8px';
+
+    const upgradeBtn = el('button', 'big-btn');
+    upgradeBtn.style.flex = '1';
+    upgradeBtn.style.background = '#6741d9';
+    upgradeBtn.style.boxShadow = '0 4px 0 #452a94';
+    upgradeBtn.style.fontSize = '16px';
+    upgradeBtn.textContent = 'Yükselt';
+    upgradeBtn.addEventListener('click', () => {
       this.payoutOverlay.classList.add('hidden');
+      this.openUpgrades();
     });
 
-    body.append(this.payoutTotal, this.payoutNewCount, this.payoutList, continueBtn);
+    const againBtn = el('button', 'big-btn');
+    againBtn.style.flex = '1';
+    againBtn.style.fontSize = '16px';
+    againBtn.textContent = 'Yeni Tur';
+    againBtn.addEventListener('click', () => {
+      this.payoutOverlay.classList.add('hidden');
+      this.onRequestStart?.();
+    });
+
+    actions.append(upgradeBtn, againBtn);
+    body.append(total, this.payoutNote, this.payoutList, actions);
   }
 
   showPayout(payout: PayoutResult): void {
-    const span = this.payoutTotal.querySelector('#payout-total-span')!;
-    span.textContent = `+${payout.total}`;
-    this.payoutNewCount.textContent =
+    this.payoutTotalValue.textContent = `+${payout.total}`;
+    this.payoutNote.textContent =
       payout.newDiscoveries.length > 0
-        ? `${payout.newDiscoveries.length} yeni obje koleksiyona eklendi!`
+        ? `${payout.items.length} obje · ${payout.newDiscoveries.length} yeni keşif!`
         : `${payout.items.length} obje topladın.`;
+
     this.payoutList.innerHTML = '';
     const newIds = new Set(payout.newDiscoveries.map((i) => i.id));
     for (const item of payout.items) {
-      const cell = el('div', 'payout-item');
-      cell.style.position = 'relative';
+      const cell = el('div', `payout-item rarity-${item.rarity}`);
       const img = el('img');
       img.src = item.sprite;
       cell.appendChild(img);
@@ -290,21 +313,23 @@ export class Hud {
     this.startScreen.classList.add('hidden');
   }
 
-  showStartScreenIfIdle(): void {
-    if (this.run.phase === 'idle' && this.run.state.totalRuns === 0) {
+  showStartScreenIfNew(): void {
+    if (this.state.totalRuns === 0) {
       this.startScreen.classList.remove('hidden');
     }
   }
 
-  setPlayButtonMode(hasPlayedBefore: boolean): void {
-    this.playBtn.lastChild!.textContent = hasPlayedBefore ? 'Yeni Tur' : 'Oyna';
-  }
-
   refreshTop(): void {
+    const playing = this.run.phase === 'playing';
     this.coinLabel.textContent = `${this.state.coins}`;
     this.shotsLabel.textContent = `${this.run.shotsRemaining}/${this.run.totalShots}`;
-    this.timeLabel.textContent = fmtTime(this.run.phase === 'playing' ? this.run.timeRemaining : BASE_RUN_DURATION);
-    this.timePill.style.borderColor = this.run.timeRemaining < 6 && this.run.phase === 'playing' ? 'var(--red)' : '';
+    this.timeLabel.textContent = fmtTime(playing ? this.run.timeRemaining : BASE_RUN_DURATION);
+    this.timePill.classList.toggle('urgent', playing && this.run.timeRemaining < 6);
+
+    const load = this.run.magnet.load;
+    this.loadLabel.textContent = load > 0 ? `${load} (-${Math.round(this.run.loadPenalty() * 100)}%)` : '0';
+
+    this.playLabel.textContent = playing ? 'Yeniden' : this.state.totalRuns > 0 ? 'Yeni Tur' : 'Oyna';
   }
 
   tick(): void {

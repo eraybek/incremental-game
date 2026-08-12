@@ -7,14 +7,62 @@ export interface CarriedItem {
   weight: number;
 }
 
-export interface ArenaBounds {
-  width: number;
-  height: number;
+/** Physics play area as an inset rectangle (the visual frame sits outside it). */
+export interface ArenaRect {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
 }
 
-const RESTITUTION = 0.78;
-const STOP_SPEED_FACTOR = 0.05;
-const FRICTION_FACTOR = 1.55;
+export const RESTITUTION = 0.8;
+export const STOP_SPEED_FACTOR = 0.04;
+
+/** Advances one body against the arena walls. Shared by the live magnet and the aim preview. */
+export function stepBody(
+  pos: Vec2,
+  vel: Vec2,
+  radius: number,
+  rect: ArenaRect,
+  decel: number,
+  dt: number,
+): boolean {
+  pos.x += vel.x * dt;
+  pos.y += vel.y * dt;
+
+  const minX = rect.minX + radius;
+  const maxX = rect.maxX - radius;
+  const minY = rect.minY + radius;
+  const maxY = rect.maxY - radius;
+
+  if (pos.x < minX) {
+    pos.x = minX;
+    vel.x = Math.abs(vel.x) * RESTITUTION;
+  } else if (pos.x > maxX) {
+    pos.x = maxX;
+    vel.x = -Math.abs(vel.x) * RESTITUTION;
+  }
+
+  if (pos.y < minY) {
+    pos.y = minY;
+    vel.y = Math.abs(vel.y) * RESTITUTION;
+  } else if (pos.y > maxY) {
+    pos.y = maxY;
+    vel.y = -Math.abs(vel.y) * RESTITUTION;
+  }
+
+  const speed = Math.hypot(vel.x, vel.y);
+  const newSpeed = Math.max(0, speed - decel * dt);
+  if (newSpeed <= decel * STOP_SPEED_FACTOR) {
+    vel.x = 0;
+    vel.y = 0;
+    return true;
+  }
+  const scale = newSpeed / speed;
+  vel.x *= scale;
+  vel.y *= scale;
+  return false;
+}
 
 export class Magnet {
   pos: Vec2;
@@ -48,52 +96,25 @@ export class Magnet {
   }
 
   attach(item: CarriedItem): void {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = this.radius * (0.35 + Math.random() * 0.5);
+    // Ring the loot outside the magnet body so a heavy load reads at a glance
+    // instead of disappearing behind the sprite.
+    const index = this.carried.length;
+    const perRing = 8;
+    const ring = Math.floor(index / perRing);
+    const angle = (index % perRing) * ((Math.PI * 2) / perRing) + ring * 0.4 + Math.random() * 0.18;
+    const dist = this.radius * (1.15 + ring * 0.62);
     item.offset = { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist };
     this.carried.push(item);
   }
 
-  update(dt: number, bounds: ArenaBounds, frictionBase: number): void {
+  update(dt: number, rect: ArenaRect, decel: number): void {
     this.justStopped = false;
     if (!this.isMoving) return;
 
-    this.pos.x += this.vel.x * dt;
-    this.pos.y += this.vel.y * dt;
-
-    const minX = this.radius;
-    const maxX = bounds.width - this.radius;
-    const minY = this.radius;
-    const maxY = bounds.height - this.radius;
-
-    if (this.pos.x < minX) {
-      this.pos.x = minX;
-      this.vel.x = Math.abs(this.vel.x) * RESTITUTION;
-    } else if (this.pos.x > maxX) {
-      this.pos.x = maxX;
-      this.vel.x = -Math.abs(this.vel.x) * RESTITUTION;
-    }
-
-    if (this.pos.y < minY) {
-      this.pos.y = minY;
-      this.vel.y = Math.abs(this.vel.y) * RESTITUTION;
-    } else if (this.pos.y > maxY) {
-      this.pos.y = maxY;
-      this.vel.y = -Math.abs(this.vel.y) * RESTITUTION;
-    }
-
-    const speed = Math.hypot(this.vel.x, this.vel.y);
-    const decel = frictionBase * FRICTION_FACTOR * dt;
-    const newSpeed = Math.max(0, speed - decel);
-    if (newSpeed <= frictionBase * STOP_SPEED_FACTOR) {
-      this.vel.x = 0;
-      this.vel.y = 0;
+    const stopped = stepBody(this.pos, this.vel, this.radius, rect, decel, dt);
+    if (stopped) {
       this.isMoving = false;
       this.justStopped = true;
-    } else {
-      const scale = newSpeed / speed;
-      this.vel.x *= scale;
-      this.vel.y *= scale;
     }
   }
 }
