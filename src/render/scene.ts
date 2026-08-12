@@ -7,6 +7,11 @@ export interface AimState {
   dirX: number;
   dirY: number;
   power01: number;
+  /** Where the drag started. The pull is measured from here rather than from
+   *  the magnet, so a magnet pinned against a wall can still be aimed at that
+   *  wall — there is always room to drag somewhere on screen. */
+  anchorX: number;
+  anchorY: number;
   /** Where the finger currently is, for drawing the pull band. */
   pointerX: number;
   pointerY: number;
@@ -166,16 +171,23 @@ export class Scene {
 
     ctx.save();
 
-    // Slingshot band back to the finger.
-    ctx.globalAlpha = 0.45;
+    // The gesture, drawn where the finger actually is: a fixed anchor dot and a
+    // band out to the current touch point.
+    ctx.globalAlpha = 0.5;
     ctx.strokeStyle = '#7dd3fc';
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 6]);
     ctx.beginPath();
-    ctx.moveTo(m.x, m.y);
+    ctx.moveTo(aim.anchorX, aim.anchorY);
     ctx.lineTo(aim.pointerX, aim.pointerY);
     ctx.stroke();
     ctx.setLineDash([]);
+
+    ctx.globalAlpha = 0.65;
+    ctx.fillStyle = '#7dd3fc';
+    ctx.beginPath();
+    ctx.arc(aim.anchorX, aim.anchorY, 5, 0, Math.PI * 2);
+    ctx.fill();
 
     // Short launch arrow: length maxes out well before the shot distance does.
     const len = r * (1.1 + aim.power01 * 1.9);

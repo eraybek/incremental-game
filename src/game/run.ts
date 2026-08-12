@@ -1,7 +1,7 @@
 import type { BoardObject, ItemDef, PersistentState } from './types';
 import { generateBoard, randomMagnetStart } from './board';
 import { Magnet, type ArenaRect } from './magnet';
-import { BASE_RUN_DURATION, BASE_SHOTS, ITEMS } from './content';
+import { ITEMS } from './content';
 import {
   loadEfficiency,
   launchMultiplier,
@@ -10,6 +10,8 @@ import {
   magnetPower,
   rangeMultiplier,
   saveState,
+  shiftDuration,
+  shiftShots,
 } from './state';
 
 export type RunPhase = 'idle' | 'playing' | 'ended';
@@ -60,9 +62,9 @@ export class RunManager {
   magnet: Magnet;
   board: BoardObject[] = [];
   phase: RunPhase = 'idle';
-  timeRemaining = BASE_RUN_DURATION;
-  shotsRemaining = BASE_SHOTS;
-  totalShots = BASE_SHOTS;
+  timeRemaining = 0;
+  shotsRemaining = 0;
+  totalShots = 0;
   lastPayout: PayoutResult | null = null;
 
   onRunEnd?: (payout: PayoutResult) => void;
@@ -146,9 +148,9 @@ export class RunManager {
     this.board = [];
     this.boardHadObjects = false;
     this.clearedTimer = 0;
-    this.timeRemaining = BASE_RUN_DURATION;
-    this.shotsRemaining = BASE_SHOTS;
-    this.totalShots = BASE_SHOTS;
+    this.totalShots = shiftShots(this.state);
+    this.shotsRemaining = this.totalShots;
+    this.timeRemaining = shiftDuration(this.state);
     this.lastPayout = null;
     this.phase = 'idle';
   }

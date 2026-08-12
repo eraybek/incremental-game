@@ -13,6 +13,7 @@ export const UI_SPRITES = {
   upgrade: `${A}/buttons/btn_r2c2.png`,
   collection: `${A}/buttons/btn_r4c3.png`,
   lock: `${A}/buttons/btn_r4c2.png`,
+  lightning: `${A}/hud/icon_lightning.png`,
   settings: `${A}/buttons/btn_r2c4.png`,
   back: `${A}/buttons/btn_r2c5.png`,
 };
@@ -111,6 +112,24 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 16,
   },
   {
+    id: 'extraTime',
+    name: 'Vardiya Süresi',
+    description: 'Her seviye vardiyaya +2 saniye ekler.',
+    icon: `${A}/hud/icon_hourglass.png`,
+    baseCost: 24,
+    costGrowth: 1.33,
+    maxLevel: 12,
+  },
+  {
+    id: 'extraShot',
+    name: 'Ekstra Atış',
+    description: 'Her seviye vardiya başına +1 atış verir.',
+    icon: `${A}/hud/icon_lightning.png`,
+    baseCost: 55,
+    costGrowth: 1.85,
+    maxLevel: 7,
+  },
+  {
     id: 'lootValue',
     name: 'Loot Value',
     description: 'Toplanan objelerin para değerini artırır.',
@@ -143,8 +162,6 @@ export interface Milestone {
 export const MILESTONES: Milestone[] = [
   { name: 'Live Drops', description: 'Vardiya sırasında yukarıdan yeni objeler düşer.', icon: `${A}/buttons/btn_r4c2.png` },
   { name: 'Time Slow', description: 'Nişan alırken zaman yavaşlar.', icon: `${A}/buttons/btn_r4c2.png` },
-  { name: 'Extra Shot', description: 'Vardiya başına atış sayısını artırır.', icon: `${A}/buttons/btn_r4c2.png` },
-  { name: 'Extra Time', description: 'Vardiya süresini uzatır.', icon: `${A}/buttons/btn_r4c2.png` },
   { name: 'Automation', description: 'Küçük objeleri otomatik toplar.', icon: `${A}/buttons/btn_r4c2.png` },
 ];
 
@@ -152,6 +169,9 @@ export function upgradeCost(def: UpgradeDef, currentLevel: number): number {
   return Math.round(def.baseCost * Math.pow(def.costGrowth, currentLevel));
 }
 
-export const BASE_RUN_DURATION = 30;
-export const BASE_SHOTS = 3;
+/** Deliberately punishing openers: one shot and ten seconds. Vardiya Süresi and
+ *  Ekstra Atış upgrades are what pull these out of the starting squeeze. */
+export const BASE_RUN_DURATION = 10;
+export const BASE_SHOTS = 1;
+export const SECONDS_PER_TIME_LEVEL = 2;
 export const BASE_MAGNET_POWER = 3;

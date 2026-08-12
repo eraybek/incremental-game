@@ -90,6 +90,8 @@ const aim: AimState = {
   dirX: 0,
   dirY: -1,
   power01: 0,
+  anchorX: 0,
+  anchorY: 0,
   pointerX: 0,
   pointerY: 0,
 };
@@ -106,21 +108,23 @@ function pointerToLocal(e: PointerEvent): { x: number; y: number } {
 function updateAimFromPoint(px: number, py: number): void {
   aim.pointerX = px;
   aim.pointerY = py;
-  let dx = run.magnet.pos.x - px;
-  let dy = run.magnet.pos.y - py;
+
+  // Measured from the drag anchor, not the magnet: dragging away from where you
+  // touched down aims the opposite way, and that works even when the magnet is
+  // jammed into a corner with no room behind it.
+  const dx = aim.anchorX - px;
+  const dy = aim.anchorY - py;
   const dist = Math.hypot(dx, dy);
   if (dist < 1) {
-    dx = 0;
-    dy = -1;
-  } else {
-    dx /= dist;
-    dy /= dist;
+    aim.power01 = 0;
+    return;
   }
-  aim.dirX = dx;
-  aim.dirY = dy;
+
+  aim.dirX = dx / dist;
+  aim.dirY = dy / dist;
   aim.power01 = Math.min(1, dist / (run.scaleRef * PULL_FRACTION));
   // Turn the magnet in place while aiming so its poles lead the shot.
-  run.magnet.facing = Math.atan2(dy, dx);
+  run.magnet.facing = Math.atan2(aim.dirY, aim.dirX);
 }
 
 canvas.addEventListener('pointerdown', (e) => {
@@ -128,6 +132,9 @@ canvas.addEventListener('pointerdown', (e) => {
   activePointerId = e.pointerId;
   aim.active = true;
   const p = pointerToLocal(e);
+  aim.anchorX = p.x;
+  aim.anchorY = p.y;
+  aim.power01 = 0;
   updateAimFromPoint(p.x, p.y);
   canvas.setPointerCapture(e.pointerId);
 });

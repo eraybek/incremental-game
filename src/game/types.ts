@@ -19,6 +19,8 @@ export type UpgradeId =
   | 'range'
   | 'launch'
   | 'loadEff'
+  | 'extraTime'
+  | 'extraShot'
   | 'lootValue'
   | 'lootQuality';
 

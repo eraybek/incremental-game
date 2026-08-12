@@ -139,6 +139,8 @@ Bu bölüm GDD'nin üzerine, mevcut kod tabanının GDD'yi nasıl karşıladığ
 - **Mıknatıs başlangıç konumu her vardiyada rastgele.** Board bu noktanın etrafında bir keepout bırakacak şekilde üretilir; her turun açılış kararı farklı oluyor.
 - **Moving Attraction artık temel mekanik, milestone değil (GDD §12'de unlock'tu).** Çekim sürekli ve her karede çalışıyor: mıknatıs havadayken de menzilindeki objeleri sürüklüyor. Pulse modeli (mıknatısın durmasını bekleme) tamamen kaldırıldı. Milestone listesinden çıkarıldı.
 - **Tur birimi "vardiya" olarak adlandırıldı.** Hurdalık/atölye temasına "run"dan daha iyi oturuyor; ekran akışı da bunun üzerine kurulu.
+- **Başlangıç 1 atış / 10 saniye (GDD §3 "yaklaşık 30 saniye ve 3 atış" diyordu).** Incremental eğrisi daha erken ve daha sert başlasın diye kısıldı; Extra Shot ve Extra Time artık kilitli milestone değil, satın alınabilir geliştirmeler (+1 atış / +2 saniye per seviye) ve ilerlemenin ana ekseni.
+- **Nişan mıknatıstan değil, parmağın bastığı noktadan ölçülür.** Mıknatıstan geriye çekmek mobilde duvara sıkışmış mıknatısı o duvara doğru atmayı imkânsız kılıyordu (çekecek yer kalmıyor). Artık drag ekranın herhangi bir yerinden başlatılabilir; yön = basılan nokta − parmağın şu anki yeri. Yan faydası: başparmak mıknatısı kapatmıyor.
 
 ### Çekim modeli
 

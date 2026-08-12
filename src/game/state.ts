@@ -1,5 +1,5 @@
 import type { PersistentState, UpgradeId } from './types';
-import { UPGRADES, upgradeCost } from './content';
+import { BASE_RUN_DURATION, BASE_SHOTS, SECONDS_PER_TIME_LEVEL, UPGRADES, upgradeCost } from './content';
 
 const STORAGE_KEY = 'magnet-incremental-save-v1';
 
@@ -84,6 +84,14 @@ export function lootValueMultiplier(state: PersistentState): number {
 
 export function lootQualityLevel(state: PersistentState): number {
   return state.upgrades.lootQuality;
+}
+
+export function shiftDuration(state: PersistentState): number {
+  return BASE_RUN_DURATION + state.upgrades.extraTime * SECONDS_PER_TIME_LEVEL;
+}
+
+export function shiftShots(state: PersistentState): number {
+  return BASE_SHOTS + state.upgrades.extraShot;
 }
 
 export function resetProgress(state: PersistentState): void {

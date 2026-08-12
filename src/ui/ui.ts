@@ -1,7 +1,6 @@
 import type { PayoutResult, RunManager } from '../game/run';
 import type { ItemDef, PersistentState } from '../game/types';
 import {
-  BASE_RUN_DURATION,
   ITEMS,
   MILESTONES,
   UI_SPRITES,
@@ -49,7 +48,8 @@ export class Ui {
   private coinLabel!: HTMLElement;
   private timeLabel!: HTMLElement;
   private timePill!: HTMLElement;
-  private shotsLabel!: HTMLElement;
+  private shotsPips!: HTMLElement;
+  private pipCount = -1;
   private loadLabel!: HTMLElement;
   private haulStrip!: HTMLElement;
   private haulCount = -1;
@@ -140,23 +140,30 @@ export class Ui {
   }
 
   private buildBars(): void {
-    // Top: run status on the left, settings on the right.
-    const stats = el('div', 'bar-group');
+    // Top: money on the left, the two things under pressure dead centre and
+    // oversized, settings on the right.
     const coin = this.statPill(UI_SPRITES.coin);
     this.coinLabel = coin.label;
-    const time = this.statPill(UI_SPRITES.hourglass);
-    this.timePill = time.pill;
-    this.timeLabel = time.label;
-    const shots = this.statPill(UI_SPRITES.target);
-    this.shotsLabel = shots.label;
-    stats.append(coin.pill, time.pill, shots.pill);
+    const topLeft = el('div', 'bar-group');
+    topLeft.append(coin.pill);
+
+    this.timePill = el('div', 'gauge timer');
+    this.timeLabel = el('span', 'gauge-value');
+    this.timePill.append(img(UI_SPRITES.hourglass), this.timeLabel);
+
+    this.shotsPips = el('div', 'pips');
+    const shotGauge = el('div', 'gauge');
+    shotGauge.append(img(UI_SPRITES.lightning), this.shotsPips);
+
+    const topCentre = el('div', 'bar-group centre');
+    topCentre.append(this.timePill, shotGauge);
 
     const settingsBtn = button('', 'icon-btn square', () => this.openSub('settings'), UI_SPRITES.settings);
     settingsBtn.title = 'Ayarlar';
-    const topRight = el('div', 'bar-group');
+    const topRight = el('div', 'bar-group end');
     topRight.append(settingsBtn);
 
-    this.topBar.append(stats, topRight);
+    this.topBar.append(topLeft, topCentre, topRight);
 
     // Bottom: carried weight and the haul, then the finish button on the right.
     const load = this.statPill(UI_SPRITES.magnet);
@@ -451,14 +458,12 @@ export class Ui {
     if (this.current !== 'playing') return;
 
     this.coinLabel.textContent = `${this.state.coins}`;
-    this.shotsLabel.textContent = `${this.run.shotsRemaining}/${this.run.totalShots}`;
-    this.timeLabel.textContent = fmtTime(
-      this.run.phase === 'playing' ? this.run.timeRemaining : BASE_RUN_DURATION,
-    );
-    this.timePill.classList.toggle(
-      'urgent',
-      this.run.phase === 'playing' && this.run.timeRemaining < 6,
-    );
+    this.renderShots();
+
+    const t = this.run.timeRemaining;
+    this.timeLabel.textContent = fmtTime(t);
+    this.timePill.classList.toggle('warn', t <= 5 && t > 3);
+    this.timePill.classList.toggle('critical', t <= 3);
 
     const load = this.run.magnet.load;
     this.loadLabel.textContent = load > 0 ? `${load} (-${Math.round(this.run.loadPenalty() * 100)}%)` : '0';
@@ -469,9 +474,25 @@ export class Ui {
     }
   }
 
+  /** Pips beat "2/5" for reading at a glance mid-shot. */
+  private renderShots(): void {
+    if (this.pipCount !== this.run.totalShots) {
+      this.pipCount = this.run.totalShots;
+      this.shotsPips.innerHTML = '';
+      for (let i = 0; i < this.run.totalShots; i++) {
+        this.shotsPips.appendChild(el('i'));
+      }
+    }
+    const pips = this.shotsPips.children;
+    for (let i = 0; i < pips.length; i++) {
+      pips[i].classList.toggle('spent', i >= this.run.shotsRemaining);
+    }
+  }
+
   /** Called when a shift starts so the strip does not carry over stale loot. */
   resetHaul(): void {
     this.haulCount = -1;
+    this.pipCount = -1;
     this.renderHaul();
   }
 }
