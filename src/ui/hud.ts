@@ -1,6 +1,13 @@
 import type { RunManager, PayoutResult } from '../game/run';
 import type { PersistentState } from '../game/types';
-import { ITEMS, MILESTONES, UPGRADES, upgradeCost, BASE_RUN_DURATION } from '../game/content';
+import {
+  ITEMS,
+  MILESTONES,
+  UPGRADES,
+  upgradeCost,
+  BASE_RUN_DURATION,
+  UI_SPRITES,
+} from '../game/content';
 import { buyUpgrade, canAfford } from '../game/state';
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -80,23 +87,23 @@ export class Hud {
     const bar = el('div', 'hud-top');
 
     const stats = el('div', 'hud-group');
-    const coin = this.statPill('/assets/hud/icon_coin.png');
+    const coin = this.statPill(UI_SPRITES.coin);
     this.coinLabel = coin.label;
-    const time = this.statPill('/assets/hud/icon_hourglass.png');
+    const time = this.statPill(UI_SPRITES.hourglass);
     this.timePill = time.pill;
     this.timeLabel = time.label;
-    const shots = this.statPill('/assets/hud/icon_target.png');
+    const shots = this.statPill(UI_SPRITES.target);
     this.shotsLabel = shots.label;
-    const load = this.statPill('/assets/hud/icon_magnet_small.png');
+    const load = this.statPill(UI_SPRITES.magnet);
     this.loadLabel = load.label;
     stats.append(coin.pill, time.pill, shots.pill, load.pill);
 
     const actions = el('div', 'hud-group actions');
-    const collection = this.actionButton('/assets/buttons/btn_r4c3.png', 'Koleksiyon');
+    const collection = this.actionButton(UI_SPRITES.collection, 'Koleksiyon');
     collection.btn.addEventListener('click', () => this.openCollection());
-    const upgrade = this.actionButton('/assets/buttons/btn_r2c2.png', 'Yükselt');
+    const upgrade = this.actionButton(UI_SPRITES.upgrade, 'Yükselt');
     upgrade.btn.addEventListener('click', () => this.openUpgrades());
-    const play = this.actionButton('/assets/buttons/btn_r2c1.png', 'Oyna', true);
+    const play = this.actionButton(UI_SPRITES.play, 'Oyna', true);
     this.playLabel = play.label;
     play.btn.addEventListener('click', () => this.onRequestStart?.());
     actions.append(collection.btn, upgrade.btn, play.btn);
@@ -236,7 +243,7 @@ export class Hud {
 
     const total = el('div', 'payout-total');
     const coinImg = el('img');
-    coinImg.src = '/assets/hud/icon_coin.png';
+    coinImg.src = UI_SPRITES.coin;
     this.payoutTotalValue = el('span');
     total.append(coinImg, this.payoutTotalValue);
 

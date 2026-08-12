@@ -1,6 +1,29 @@
 import type { ItemDef, Rarity, UpgradeDef, UpgradeId } from './types';
+import { asset } from '../assetPath';
 
-const A = '/assets';
+const A = asset('assets');
+
+/** Chrome shared by the HUD and the modals. */
+export const UI_SPRITES = {
+  coin: `${A}/hud/icon_coin.png`,
+  hourglass: `${A}/hud/icon_hourglass.png`,
+  magnet: `${A}/hud/icon_magnet_small.png`,
+  target: `${A}/hud/icon_target.png`,
+  play: `${A}/buttons/btn_r2c1.png`,
+  upgrade: `${A}/buttons/btn_r2c2.png`,
+  collection: `${A}/buttons/btn_r4c3.png`,
+  lock: `${A}/buttons/btn_r4c2.png`,
+};
+
+/** Everything the canvas scene draws directly. */
+export const SCENE_SPRITES = {
+  magnetIdle: `${A}/magnet/magnet_idle.png`,
+  magnetActive: `${A}/magnet/magnet_active.png`,
+  magnetMoving: `${A}/magnet/magnet_moving.png`,
+  floorTile: `${A}/environment/tile_r2c2.png`,
+  hazardTile: `${A}/environment/tile_r6c3.png`,
+  pipeTile: `${A}/environment/tile_r6c1.png`,
+};
 
 export const ITEMS: ItemDef[] = [
   // common junk

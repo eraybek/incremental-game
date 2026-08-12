@@ -20,6 +20,14 @@ npm run build
 npm run preview
 ```
 
+## Deploy
+
+`main` branch'ine her push'ta `.github/workflows/deploy.yml` projeyi build edip GitHub Pages'e yayınlar:
+
+**https://eraybek.github.io/incremental-game/**
+
+Pages bir proje alt yolunda (`/incremental-game/`) yayınlandığı için build `base: './'` ile göreli yollar üretir. Kodda çalışma anında oluşturulan asset URL'leri (`new Image().src = ...`) Vite tarafından yeniden yazılamaz, bu yüzden **hepsi `src/assetPath.ts` içindeki `asset()` yardımcısından geçmelidir** — doğrudan `/assets/...` yazmak alt yolda kırılır.
+
 ## Proje yapısı
 
 ```

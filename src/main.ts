@@ -3,7 +3,7 @@ import { RunManager } from './game/run';
 import { Scene, type AimState } from './render/scene';
 import { Hud } from './ui/hud';
 import { loadState } from './game/state';
-import { ITEMS, UPGRADES, MILESTONES } from './game/content';
+import { ITEMS, UPGRADES, MILESTONES, UI_SPRITES, SCENE_SPRITES } from './game/content';
 import { preload } from './render/assets';
 
 const wrap = document.getElementById('canvas-wrap') as HTMLElement;
@@ -19,16 +19,8 @@ void preload([
   ...ITEMS.map((i) => i.sprite),
   ...UPGRADES.map((u) => u.icon),
   ...MILESTONES.map((m) => m.icon),
-  '/assets/hud/icon_coin.png',
-  '/assets/hud/icon_hourglass.png',
-  '/assets/hud/icon_magnet_small.png',
-  '/assets/hud/icon_target.png',
-  '/assets/buttons/btn_r2c1.png',
-  '/assets/buttons/btn_r2c2.png',
-  '/assets/buttons/btn_r4c3.png',
-  '/assets/environment/tile_r2c2.png',
-  '/assets/environment/tile_r6c1.png',
-  '/assets/environment/tile_r6c3.png',
+  ...Object.values(UI_SPRITES),
+  ...Object.values(SCENE_SPRITES),
 ]);
 
 function resize(): void {

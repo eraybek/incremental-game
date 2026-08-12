@@ -1,6 +1,6 @@
 import type { RunManager } from '../game/run';
 import type { Vec2 } from '../game/types';
-import { RARITY_COLOR } from '../game/content';
+import { RARITY_COLOR, SCENE_SPRITES } from '../game/content';
 import { loadImage } from './assets';
 
 export interface AimState {
@@ -33,14 +33,14 @@ interface Bolt {
 }
 
 const MAGNET_SPRITES = {
-  idle: '/assets/magnet/magnet_idle.png',
-  active: '/assets/magnet/magnet_active.png',
-  moving: '/assets/magnet/magnet_moving.png',
+  idle: SCENE_SPRITES.magnetIdle,
+  active: SCENE_SPRITES.magnetActive,
+  moving: SCENE_SPRITES.magnetMoving,
 };
 
-const FLOOR_TILE = '/assets/environment/tile_r2c2.png';
-const HAZARD_TILE = '/assets/environment/tile_r6c3.png';
-const PIPE_TILE = '/assets/environment/tile_r6c1.png';
+const FLOOR_TILE = SCENE_SPRITES.floorTile;
+const HAZARD_TILE = SCENE_SPRITES.hazardTile;
+const PIPE_TILE = SCENE_SPRITES.pipeTile;
 
 const PULSE_LIFETIME = 0.55;
 
