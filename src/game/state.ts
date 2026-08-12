@@ -79,7 +79,7 @@ export function magnetPower(state: PersistentState): number {
 }
 
 export function rangeMultiplier(state: PersistentState): number {
-  return 1 + state.upgrades.range * 0.1;
+  return 1 + state.upgrades.range * 0.055;
 }
 
 export function launchMultiplier(state: PersistentState): number {

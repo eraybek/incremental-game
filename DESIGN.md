@@ -144,6 +144,14 @@ Bu bölüm GDD'nin üzerine, mevcut kod tabanının GDD'yi nasıl karşıladığ
 - **Başlangıç 1 atış / 10 saniye (GDD §3 "yaklaşık 30 saniye ve 3 atış" diyordu).** Incremental eğrisi daha erken ve daha sert başlasın diye kısıldı; Extra Shot ve Extra Time artık kilitli milestone değil, satın alınabilir geliştirmeler (+1 atış / +2 saniye per seviye) ve ilerlemenin ana ekseni.
 - **Nişan mıknatıstan değil, parmağın bastığı noktadan ölçülür.** Mıknatıstan geriye çekmek mobilde duvara sıkışmış mıknatısı o duvara doğru atmayı imkânsız kılıyordu (çekecek yer kalmıyor). Artık drag ekranın herhangi bir yerinden başlatılabilir; yön = basılan nokta − parmağın şu anki yeri. Yan faydası: başparmak mıknatısı kapatmıyor.
 
+### Alan boyutu ve nişanın önemi
+
+Dikeye geçişten sonra otomatik oynatılan 32 vardiyalık ölçümde çekim alanının arenayı yuttuğu ortaya çıktı: `scaleRef` artık kısa kenar yani **genişlik** olduğu için alan çapı Lv.0'da arena genişliğinin %65'ini, Lv.5'te %97'sini, Lv.10'da %129'unu kaplıyordu. Sonuç, nişan almanın anlamını yitirmesiydi — rastgele atışlar tahtanın 13 parçasının 9'unu topluyor, hiç atış yapmamak bile 4 parça getiriyordu.
+
+Alan faktörü 0.3 → **0.16**, seviye başına büyüme 0.1 → **0.055** yapıldı. Yeni ölçüm: hiç atış yapmamak artık **0 parça** getiriyor, yani mıknatısı nereye kondurduğun tek belirleyici. Alan Lv.0'da arena genişliğinin ~%35'i, maksimumda ~%80'i.
+
+Küçülen alanın telafisi olarak çekim hızı (`PULL_SPEED` 0.32 → 0.45) artırıldı ve erken geliştirmelerin maliyeti düşürüldü: dar alan "zayıf" değil "menziline gireni kesin alan" hissettirmeli.
+
 ### Çekim modeli
 
 Her karede, menzil içindeki her obje `PULL_SPEED × (power / weight) × falloff` hızıyla mıknatısa doğru çekilir; sprite'lar değdiğinde obje toplanır.

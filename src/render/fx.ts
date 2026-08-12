@@ -1,3 +1,5 @@
+import { loadImage } from './assets';
+
 interface Particle {
   x: number;
   y: number;
@@ -19,6 +21,16 @@ interface Ring {
   width: number;
 }
 
+/** A collected piece flying into the magnet before it disappears. */
+interface Absorb {
+  sprite: string;
+  x: number;
+  y: number;
+  life: number;
+  maxLife: number;
+  size: number;
+}
+
 interface FloatText {
   x: number;
   y: number;
@@ -29,6 +41,7 @@ interface FloatText {
 }
 
 const DRAG = 2.6;
+const ABSORB_TIME = 0.2;
 
 /**
  * Short-lived visual feedback: sparks, expanding rings, floating values and
@@ -38,6 +51,7 @@ export class Fx {
   private particles: Particle[] = [];
   private rings: Ring[] = [];
   private texts: FloatText[] = [];
+  private absorbs: Absorb[] = [];
   private shakeAmount = 0;
   private shakeX = 0;
   private shakeY = 0;
@@ -46,7 +60,14 @@ export class Fx {
     this.particles.length = 0;
     this.rings.length = 0;
     this.texts.length = 0;
+    this.absorbs.length = 0;
     this.shakeAmount = 0;
+  }
+
+  /** Sends a collected sprite flying into the magnet instead of letting it
+   *  vanish on the spot, so a pickup reads as being taken rather than deleted. */
+  absorb(sprite: string, x: number, y: number, size: number): void {
+    this.absorbs.push({ sprite, x, y, life: ABSORB_TIME, maxLife: ABSORB_TIME, size });
   }
 
   burst(x: number, y: number, color: string, count: number, speed: number): void {
@@ -107,7 +128,22 @@ export class Fx {
     return this.shakeY;
   }
 
-  update(dt: number): void {
+  /** `targetX/Y` is the magnet: absorbed pieces chase it even while it moves. */
+  update(dt: number, targetX: number, targetY: number): void {
+    for (let i = this.absorbs.length - 1; i >= 0; i--) {
+      const a = this.absorbs[i];
+      a.life -= dt;
+      if (a.life <= 0) {
+        this.absorbs.splice(i, 1);
+        continue;
+      }
+      // Ease-in: hesitates, then snaps the last stretch.
+      const t = 1 - a.life / a.maxLife;
+      const k = Math.min(1, t * t * 2.2 + dt * 6);
+      a.x += (targetX - a.x) * k;
+      a.y += (targetY - a.y) * k;
+    }
+
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.life -= dt;
@@ -144,6 +180,19 @@ export class Fx {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
+    for (const a of this.absorbs) {
+      const t = 1 - a.life / a.maxLife;
+      const img = loadImage(a.sprite);
+      if (!img.complete || img.naturalWidth === 0) continue;
+      const scale = (a.size * (1 - t * 0.55)) / Math.max(img.naturalWidth, img.naturalHeight);
+      const w = img.naturalWidth * scale;
+      const h = img.naturalHeight * scale;
+      ctx.save();
+      ctx.globalAlpha = 1 - t * 0.85;
+      ctx.drawImage(img, a.x - w / 2, a.y - h / 2, w, h);
+      ctx.restore();
+    }
+
     for (const r of this.rings) {
       const t = 1 - r.life / r.maxLife;
       const eased = 1 - Math.pow(1 - t, 3);

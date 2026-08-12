@@ -140,6 +140,16 @@ export class Scene {
   private drawBoardObjects(run: RunManager): void {
     const ctx = this.ctx;
     for (const obj of run.board) {
+      // Faint contact shadow: enough to plant the sprite on the floor, far
+      // lighter than the drop shadows that made the old arena look busy.
+      ctx.save();
+      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = '#03050d';
+      ctx.beginPath();
+      ctx.ellipse(obj.pos.x, obj.pos.y + obj.radius * 0.66, obj.radius * 0.62, obj.radius * 0.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
       if (obj.item.rarity !== 'common') {
         const color = RARITY_COLOR[obj.item.rarity];
         const glow = ctx.createRadialGradient(
@@ -251,6 +261,14 @@ export class Scene {
     ctx.stroke();
     ctx.restore();
 
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#03050d';
+    ctx.beginPath();
+    ctx.ellipse(m.pos.x, m.pos.y + m.radius * 0.72, m.radius * 0.7, m.radius * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     // One sprite, one size, always — but it turns so the poles lead the way.
     drawSpriteFacing(
       ctx,
@@ -265,7 +283,7 @@ export class Scene {
 
   draw(run: RunManager, aim: AimState, dt: number): void {
     this.squash = Math.max(0, this.squash - dt * 4.5);
-    this.fx.update(dt);
+    this.fx.update(dt, run.magnet.pos.x, run.magnet.pos.y);
 
     // The frame is drawn outside the shake so the bay itself stays put and only
     // its contents rattle.

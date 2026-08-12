@@ -43,7 +43,7 @@ resize();
 
 // ------------------------------------------------------------ shift flow
 
-const INTRO_MS = 1400;
+const INTRO_MS = 700;
 let introTimer: number | undefined;
 
 /** Shows the shift card over an arena holding nothing but the magnet; the scrap
@@ -109,6 +109,7 @@ run.onCollect = (item, x, y, value) => {
     ui.pulseHaul();
     return;
   }
+  scene.fx.absorb(item.sprite, x, y, run.magnet.radius * 1.9);
   scene.fx.ring(x, y, run.magnet.radius * 1.9, color, rare ? 4 : 2.5);
   scene.fx.burst(x, y, color, rare ? 14 : 7, rare ? 210 : 140);
   scene.fx.floatText(x, y - run.magnet.radius * 0.6, `+${value}`, rare ? color : '#ffd166');

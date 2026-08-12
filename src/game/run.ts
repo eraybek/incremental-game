@@ -49,8 +49,9 @@ const MAX_LOAD_PENALTY = 0.72;
  *  `PULL_SPEED × (power / weight) × falloff`, so a light nut snaps in almost
  *  instantly while a heavy toolbox only creeps a few pixels as the magnet
  *  rushes past — the gradual multi-pass pickup the design calls for, without
- *  waiting for the magnet to come to rest. */
-const PULL_SPEED = 0.32;
+ *  waiting for the magnet to come to rest. Raised alongside the smaller field:
+ *  a tighter field has to feel decisive about what it does reach, not weak. */
+const PULL_SPEED = 0.45;
 /** Pull is strongest at the magnet and weakest at the rim of the field. */
 const EDGE_FALLOFF = 0.65;
 /** Beat between the last piece being collected and the shift report. */
@@ -140,8 +141,12 @@ export class RunManager {
     return Math.max(full * power01 * (1 - penalty), this.diagonal() * 0.18);
   }
 
+  /** Field radius. Kept well under the arena width on purpose: measured at the
+   *  old 0.3 factor the level-0 field already spanned 65% of a portrait arena
+   *  and a level-5 field spanned 97%, so where the magnet landed stopped
+   *  mattering. At 0.16 it opens at ~35% and reaches ~80% only when maxed. */
   attractionRangePx(): number {
-    return this.scaleRef * 0.3 * rangeMultiplier(this.state);
+    return this.scaleRef * 0.16 * rangeMultiplier(this.state);
   }
 
   loadPenalty(): number {

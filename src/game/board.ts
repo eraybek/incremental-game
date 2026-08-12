@@ -37,7 +37,7 @@ export function generateBoard(
 
   const objects: BoardObject[] = [];
   const margin = radius * 1.6;
-  const keepout = magnetRadius + radius + scaleRef * 0.16;
+  const keepout = magnetRadius + radius + scaleRef * 0.1;
   const minSpacing = radius * 2.25;
 
   let attempts = 0;

@@ -82,18 +82,18 @@ export const UPGRADES: UpgradeDef[] = [
     name: 'Magnet Power',
     description: 'Objeleri daha hızlı çeker, daha ağırlarını kaldırır.',
     icon: `${A}/hud/icon_magnet_small.png`,
-    baseCost: 18,
+    baseCost: 14,
     costGrowth: 1.32,
     maxLevel: 24,
   },
   {
     id: 'range',
-    valueAt: (l) => `×${(1 + l * 0.1).toFixed(2)}`,
+    valueAt: (l) => `×${(1 + l * 0.055).toFixed(2)}`,
     unit: 'alan',
     name: 'Attraction Range',
     description: 'Mıknatısın çekim alanını genişletir.',
     icon: `${A}/hud/icon_target.png`,
-    baseCost: 22,
+    baseCost: 18,
     costGrowth: 1.3,
     maxLevel: 24,
   },
@@ -137,7 +137,7 @@ export const UPGRADES: UpgradeDef[] = [
     name: 'Ekstra Atış',
     description: 'Her seviye vardiya başına +1 atış verir.',
     icon: `${A}/hud/icon_lightning.png`,
-    baseCost: 55,
+    baseCost: 42,
     costGrowth: 1.85,
     maxLevel: 7,
   },
@@ -148,7 +148,7 @@ export const UPGRADES: UpgradeDef[] = [
     name: 'Loot Value',
     description: 'Toplanan objelerin para değerini artırır.',
     icon: `${A}/hud/icon_coin.png`,
-    baseCost: 28,
+    baseCost: 24,
     costGrowth: 1.35,
     maxLevel: 24,
   },
@@ -185,9 +185,11 @@ export function upgradeCost(def: UpgradeDef, currentLevel: number): number {
   return Math.round(def.baseCost * Math.pow(def.costGrowth, currentLevel));
 }
 
-/** Deliberately punishing openers: one shot and ten seconds. Vardiya Süresi and
- *  Ekstra Atış upgrades are what pull these out of the starting squeeze. */
-export const BASE_RUN_DURATION = 10;
-export const BASE_SHOTS = 1;
+/** A tight opener that still leaves room to think: two shots and twelve
+ *  seconds. One shot measured at ~2s of actual play per shift, which was
+ *  shorter than the intro card in front of it. Vardiya Süresi and Ekstra Atış
+ *  upgrades pull these out of the starting squeeze. */
+export const BASE_RUN_DURATION = 12;
+export const BASE_SHOTS = 2;
 export const SECONDS_PER_TIME_LEVEL = 2;
 export const BASE_MAGNET_POWER = 3;
