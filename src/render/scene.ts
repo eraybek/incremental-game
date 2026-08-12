@@ -64,6 +64,9 @@ export class SceneView {
   private boats: THREE.Mesh[] = [];
   private focusRing!: THREE.Mesh;
 
+  /** Deniz tabanindaki bitki/kaya/objeler. */
+  private floorProps: { mesh: THREE.Mesh; x: number; sway: number; phase: number }[] = [];
+
   private floats: FloatText[] = [];
   private floatLayer: HTMLElement;
   private time = 0;
@@ -86,6 +89,7 @@ export class SceneView {
     this.buildBeams();
     this.buildBubbles();
     this.buildFocusRing();
+    this.buildFloor();
     this.resize();
   }
 
@@ -246,6 +250,48 @@ export class SceneView {
     this.scene.add(this.bubbles);
   }
 
+  /**
+   * Deniz tabani: erisilebilir derinligin hemen altina yosun, mercan, kaya ve
+   * batık objeler serpistirir. Once orasi bombos bir karanlik banttti;
+   * sahneye "bir yer" hissi veren sey bu.
+   */
+  private buildFloor(): void {
+    // objects.png: yosun, mercan, kutuk, sandik, capa, kaya...
+    const props = [0, 1, 2, 4, 9, 11, 14, 15, 8];
+    for (let i = 0; i < 14; i++) {
+      const ref: SpriteRef = { sheet: 'obj', i: props[i % props.length] };
+      const mesh = spriteMesh(ref, 0.07 + Math.random() * 0.05);
+      mesh.renderOrder = -15;
+      const mat = mesh.material as THREE.MeshBasicMaterial;
+      mat.transparent = true;
+      // Dipte isik az; objeler koyulasip arka plana gomulur.
+      mat.color.setScalar(0.45 + Math.random() * 0.2);
+      this.scene.add(mesh);
+      this.floorProps.push({
+        mesh,
+        x: (Math.random() * 2 - 1) * 1.05,
+        sway: 0.4 + Math.random() * 0.8,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  /** Taban objelerini erisim sinirina yerlestirir ve hafifce sallandirir. */
+  private updateFloor(game: Game): void {
+    const y = this.depthToY(game.maxDepth);
+    for (const p of this.floorProps) {
+      const h = p.mesh.scale.y;
+      p.mesh.position.set(
+        this.normToWorldX(p.x),
+        y - h * 0.42,
+        0,
+      );
+      // Yosun/bitki akintida salinir.
+      p.mesh.rotation.z = Math.sin(this.time * p.sway + p.phase) * 0.09;
+      p.mesh.visible = y > BOTTOM_Y + 0.02;
+    }
+  }
+
   private buildFocusRing(): void {
     const mat = new THREE.MeshBasicMaterial({
       color: 0xffe08a, transparent: true, opacity: 0.9, depthTest: false,
@@ -271,7 +317,7 @@ export class SceneView {
       this.scene.add(line);
       this.lines.push(line);
 
-      const hook = spriteMesh(BOBBER_SPRITE, 0.036);
+      const hook = spriteMesh(BOBBER_SPRITE, 0.05);
       hook.renderOrder = 10;
       hook.visible = false;
       this.scene.add(hook);
@@ -293,7 +339,7 @@ export class SceneView {
       this.grabRings.push(ring);
 
       // Tekne: yuzeyde ufak bir gorsel imleç (techizat sprite'i).
-      const boat = spriteMesh({ sheet: 'gear', i: 1 }, 0.05);
+      const boat = spriteMesh({ sheet: 'gear', i: 1 }, 0.062);
       boat.renderOrder = 12;
       boat.visible = false;
       this.scene.add(boat);
@@ -337,6 +383,7 @@ export class SceneView {
     this.waterMat.uniforms.uReach.value = clamp(game.maxDepth / this.visibleDepth, 0.05, 0.995);
     (this.beams.material as THREE.ShaderMaterial).uniforms.uTime.value = this.time;
 
+    this.updateFloor(game);
     this.updateBubbles(dt);
     this.updateSwimmers(game);
     this.updateRods(game);
@@ -385,7 +432,7 @@ export class SceneView {
       const bob = Math.sin(this.time * 0.9 + s.phase) * 0.008;
       const y = this.depthToY(s.depth) + bob;
       mesh.position.set(this.normToWorldX(s.x), y, 0);
-      const size = 0.036 + s.species.size * 0.022;
+      const size = 0.058 + s.species.size * 0.036;
       // Sprite'lar saga bakiyor; sola giderken yatay cevir.
       mesh.scale.set(size * (s.vx < 0 ? -1 : 1), size, 1);
       mesh.visible = y < SURFACE_Y - 0.01;
@@ -434,12 +481,19 @@ export class SceneView {
       const wobble = Math.sin(this.time * 2.4 + i) * 0.003;
 
       if (rod.phase === 'idle') {
-        // Kanca bosta da teknenin altinda asili durur; oyuncu neyi
-        // biraktigini ve nereden dustugunu gorsun.
-        katch.visible = ring.visible = false;
+        // Sarkac: kanca teknenin altinda saga sola salinir. Oyuncunun
+        // zamanlayacagi sey bu hareket, o yuzden her zaman gorunur.
+        katch.visible = false;
         hook.visible = true;
-        hook.position.set(bx, BOAT_Y - 0.06 + wobble, 0);
-        this.drawLine(line, bx, bx, BOAT_Y - 0.06);
+        const sy = this.depthToY(rod.depth);
+        hook.position.set(hx, sy + wobble, 0);
+        this.drawLine(line, bx, hx, sy);
+        // Yakalama menzili bostayken de gorunur ki oyuncu neyi kapacagini
+        // olcebilsin - sarkacta asil bilgi bu.
+        ring.visible = true;
+        ring.position.set(hx, sy, 0);
+        ring.scale.setScalar(game.grabRadius * this.halfWidth * X_MAP);
+        (ring.material as THREE.MeshBasicMaterial).opacity = 0.18;
         continue;
       }
 
@@ -452,10 +506,10 @@ export class SceneView {
 
       // Kapma yariçapi halkasi yalnizca inerken gorunur.
       if (rod.phase === 'dropping') {
-        const r = game.grabRadius * this.halfWidth * X_MAP;
         ring.visible = true;
         ring.position.set(hx, hookY, 0);
-        ring.scale.setScalar(r);
+        ring.scale.setScalar(game.grabRadius * this.halfWidth * X_MAP);
+        (ring.material as THREE.MeshBasicMaterial).opacity = 0.35;
       } else {
         ring.visible = false;
       }
@@ -473,7 +527,7 @@ export class SceneView {
         }
         katch.visible = true;
         katch.position.set(hx, hookY - 0.03, 0);
-        const s = 0.03 + rod.hooked.species.size * 0.022;
+        const s = 0.05 + rod.hooked.species.size * 0.034;
         katch.scale.set(s, s, 1);
         katch.rotation.z = Math.sin(this.time * 9) * 0.25;
       } else {

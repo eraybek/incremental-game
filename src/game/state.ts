@@ -5,6 +5,7 @@ import {
   TREASURE_MULTIPLIER,
   UPGRADES,
   UPGRADE_BY_ID,
+  BASE_RODS,
   autoCastDelayAt,
   comboCapAt,
   costOf,
@@ -24,6 +25,10 @@ const SAVE_VERSION = 4;
 
 /** Balik/copun yatay dolasma siniri (normalize olcek). */
 const X_LIMIT = 1.12;
+/** Sarkacin en genis acisi (radyan). Gold Miner'daki gibi genis bir yay. */
+export const MAX_SWING = 1.15;
+/** Sarkacin salinim hizi. */
+const SWING_SPEED = 1.25;
 /** Cevrimdisi kazanc tavani (saniye) — 10 saat. */
 const OFFLINE_CAP = 10 * 3600;
 /** Cevrimdisi verim: izlemeden kazanc, izleyerek kazancin yarisi. */
@@ -129,7 +134,7 @@ export class Game {
   }
 
   get rodCount(): number {
-    return 1 + this.upgrades.rods + this.cleanBonus('rod');
+    return BASE_RODS + this.upgrades.rods + this.cleanBonus('rod');
   }
 
   get autoCastDelay(): number {
@@ -319,7 +324,7 @@ export class Game {
       this.rods.push({
         index: this.rods.length,
         phase: 'idle',
-        homeX: 0, hookX: 0,
+        homeX: 0, hookX: 0, angle: 0, len: 0,
         targetDepth: 0, depth: 0,
         timer: 0,
         hooked: null, perfect: false, manual: false, autoTimer: 0,
@@ -342,10 +347,11 @@ export class Game {
   }
 
   /**
-   * Dokunulan noktaya en yakin bostaki oltayi secip kancayi o sutunda (x)
-   * hedef derinlige indirir; odagi ona tasir (manuel).
+   * Kancayi birakir. Sarkacta karar "nereye" degil "ne zaman": dokunuldugu
+   * andaki aci inisi belirler. Dokunulan noktaya en yakin bostaki olta secilir,
+   * boylece coklu oltada da tek dokunusla oynanir.
    */
-  dropAt(x: number, depth: number): Rod | null {
+  dropAt(x: number, _depth: number): Rod | null {
     let best: Rod | null = null;
     let bestD = Infinity;
     for (const rod of this.rods) {
@@ -354,21 +360,42 @@ export class Game {
       if (d < bestD) { bestD = d; best = rod; }
     }
     if (!best) return null;
-    this.beginDrop(best, x, depth, true);
+    this.beginDrop(best, true);
     this.focusIndex = best.index;
-    this.lastAim = { x, depth };
     return best;
   }
 
-  private beginDrop(rod: Rod, x: number, depth: number, manual: boolean): void {
+  /** Kancayi o anki sarkac acisiyla asagi salar. */
+  private beginDrop(rod: Rod, manual: boolean): void {
     rod.phase = 'dropping';
-    rod.hookX = clamp(x, -1, 1);
-    rod.targetDepth = clamp(depth, 8, this.maxDepth);
+    rod.len = 0;
     rod.depth = 0;
+    rod.hookX = rod.homeX;
     rod.timer = 0;
     rod.hooked = null;
     rod.perfect = false;
     rod.manual = manual;
+  }
+
+  /** Ip boyu ve aciya gore kancanin konumunu tazeler. */
+  private placeHook(rod: Rod): void {
+    rod.depth = rod.len * Math.cos(rod.angle);
+    // Yatay kayma normalize x olceginde; ekranin dikey araligi referans.
+    rod.hookX = clamp(
+      rod.homeX + (Math.sin(rod.angle) * rod.len) / Math.max(1, this.maxDepth),
+      -1.05, 1.05,
+    );
+  }
+
+  /** Sarkacin bosta salinmasi. */
+  private swing(rod: Rod, dt: number): void {
+    rod.timer += dt * SWING_SPEED;
+    // Her olta kendi fazinda sallanir ki filo senkron gorunmesin.
+    rod.angle = MAX_SWING * Math.sin(rod.timer + rod.index * 1.1);
+    // Ip bosta belirgin bir boyda sallanir: yay gorunmezse oyuncunun
+    // zamanlayacagi bir sey de olmaz.
+    rod.len = this.maxDepth * 0.22;
+    this.placeHook(rod);
   }
 
   // --- Ana dongu -----------------------------------------------------------
@@ -389,33 +416,34 @@ export class Game {
     rod.timer += dt;
     switch (rod.phase) {
       case 'idle': {
+        this.swing(rod, dt);
         const delay = this.autoCastDelay;
         if (!Number.isFinite(delay)) break;
         rod.autoTimer += dt;
+        // Otomatik olta sureyi doldurunca hemen birakmaz: sarkac bir hedefin
+        // uzerine gelene kadar bekler. Boylece bot korlemesine sallamak
+        // yerine "nisan aliyor" gibi davranir ve idle geliri saglam kalir.
         if (rod.autoTimer >= delay) {
-          rod.autoTimer = 0;
-          // Otomatik oltalar son nisan noktasina, indekslerine gore yayilarak
-          // iner ki kancalar ust uste binmesin.
-          const n = this.rods.length;
-          const spread = n > 1 ? (rod.index - (n - 1) / 2) * 0.28 : 0;
-          this.beginDrop(rod, this.lastAim.x + spread, this.lastAim.depth, false);
+          if (this.aimHasTarget(rod) || rod.autoTimer >= delay + 2) {
+            rod.autoTimer = 0;
+            this.beginDrop(rod, false);
+          }
         }
         break;
       }
       case 'dropping': {
-        const prev = rod.depth;
-        rod.depth += this.dropSpeed * dt;
+        rod.len += this.dropSpeed * dt;
+        this.placeHook(rod);
         if (rod.depth > this.deepest) this.deepest = rod.depth;
-        // Inis yolu uzerinde (prev..depth) bir baliga carptik mi?
-        const hit = this.catchAlong(rod, prev, rod.depth);
+        const hit = this.catchAt(rod);
         if (hit) {
           rod.hooked = hit.hooked;
           rod.perfect = rod.manual && hit.aligned;
           rod.phase = 'reeling';
           rod.timer = 0;
-        } else if (rod.depth >= rod.targetDepth) {
-          // Hedefe ulastik, bir sey yok: bos don (affedici, ceza yok).
-          rod.depth = rod.targetDepth;
+        } else if (rod.len >= this.maxDepth) {
+          // Misina bitti, bir sey yok: bos don (affedici, ceza yok).
+          rod.len = this.maxDepth;
           rod.phase = 'reeling';
           rod.timer = 0;
           this.events.onMiss(rod);
@@ -426,9 +454,10 @@ export class Game {
         // Gold Miner'in nugget mantigi: agir olan yavas gelir. Buyuk bir
         // baligi cekmek oltayi uzun sure mesgul eder, o sirada baska balik
         // kacar - "hangisine gideyim" karari boyle agirlik kazaniyor.
-        rod.depth -= this.dropSpeed * this.reelFactor(rod) * dt;
-        if (rod.depth <= 0) {
-          rod.depth = 0;
+        rod.len -= this.dropSpeed * this.reelFactor(rod) * dt;
+        this.placeHook(rod);
+        if (rod.len <= 0) {
+          rod.len = 0;
           this.land(rod);
         }
         break;
@@ -440,20 +469,11 @@ export class Game {
    * Kancanin (prev..now) derinlik araliginda, yatay yariçap icinde bir balik
    * varsa onu yakalar ve havuzdan cikarir. En yakin hizalanani secer.
    */
-  private catchAlong(rod: Rod, prev: number, now: number): { hooked: Hooked; aligned: boolean } | null {
-    const xTol = this.grabRadius;
-    const vTol = this.grabDepth;
-    let bestIdx = -1;
-    let bestDx = Infinity;
-    for (let i = 0; i < this.swimmers.length; i++) {
-      const s = this.swimmers[i];
-      const dx = Math.abs(s.x - rod.hookX);
-      if (dx > xTol) continue;
-      // Kanca bu baligin derinliginden gecti mi?
-      if (s.depth < prev - vTol || s.depth > now + vTol) continue;
-      if (dx < bestDx) { bestDx = dx; bestIdx = i; }
-    }
+  /** Kancanin su anki konumunda bir sey var mi. */
+  private catchAt(rod: Rod): { hooked: Hooked; aligned: boolean } | null {
+    const bestIdx = this.nearestSwimmer(rod.hookX, rod.depth);
     if (bestIdx < 0) return null;
+    const bestDx = this.swimmerDist(this.swimmers[bestIdx], rod.hookX, rod.depth);
     const s = this.swimmers[bestIdx];
     const depth = s.depth;
     const hooked = s.species.kind === 'fish'
@@ -461,7 +481,43 @@ export class Game {
       : this.makeJunk(s.species, depth);
     // Yakalanani havuzdan cikar, yerine yeni bir yuzen getir.
     this.respawn(s);
-    return { hooked, aligned: bestDx <= xTol * 0.4 };
+    return { hooked, aligned: bestDx <= 0.45 };
+  }
+
+  /**
+   * Kanca ile bir yuzenin normalize uzakligi (1 = yakalama sinirinda).
+   * Yatay ve dikey toleranslar farkli oldugu icin elips olarak olculur.
+   */
+  private swimmerDist(s: Swimmer, hx: number, hd: number): number {
+    const dx = (s.x - hx) / this.grabRadius;
+    const dy = (s.depth - hd) / this.grabDepth;
+    return Math.hypot(dx, dy);
+  }
+
+  /** Verilen noktaya yakalama menzilindeki en yakin yuzenin indeksi. */
+  private nearestSwimmer(hx: number, hd: number): number {
+    let bestIdx = -1;
+    let best = Infinity;
+    for (let i = 0; i < this.swimmers.length; i++) {
+      const d = this.swimmerDist(this.swimmers[i], hx, hd);
+      if (d <= 1 && d < best) { best = d; bestIdx = i; }
+    }
+    return bestIdx;
+  }
+
+  /**
+   * Sarkacin su anki acisi bir hedefe bakiyor mu; otomatik oltanin
+   * "nisan alma" karari icin. Isinin uzerinde menzile girecek bir yuzen arar.
+   */
+  private aimHasTarget(rod: Rod): boolean {
+    const steps = 12;
+    for (let i = 1; i <= steps; i++) {
+      const len = (this.maxDepth * i) / steps;
+      const d = len * Math.cos(rod.angle);
+      const x = rod.homeX + (Math.sin(rod.angle) * len) / Math.max(1, this.maxDepth);
+      if (this.nearestSwimmer(x, d) >= 0) return true;
+    }
+    return false;
   }
 
   /** Cekis hizi carpani: bos kanca hizli, agir av yavas. */

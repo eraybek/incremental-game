@@ -26,6 +26,20 @@ yapacak anlamlı şey bırakmıyorsa yanlıştır.
 
 ## Çekirdek mekanik: kanca
 
+### Sahne
+
+Deniz tabanı sahnenin parçası: erişilebilir derinliğin hemen altında yosun,
+mercan, kaya, batık sandık ve çapa duruyor, akıntıda hafifçe salınıyorlar.
+Önceden orası bomboş bir karanlık banttı; sahneye "bir yer" hissini veren şey
+bu. Balık ve obje sprite'ları, 32 piksellik çizimlerin detayı görünsün diye
+belirgin şekilde büyütüldü.
+
+Oyuna **iki oltayla** başlanıyor. Tek oltayla ekran çoğu zaman ölü kalıyordu —
+bırakıyorsun, 1,5 saniyede bitiyor, bekliyorsun. İkinci olta ilk dakikadan
+itibaren sahnede sürekli bir şey olmasını sağlıyor. Otomatik olta da çok daha
+erken ulaşılabilir hale getirildi (2500 → 600), böylece idle kimliği başta
+hissediliyor.
+
 ### Balık şeritleri
 
 Balıklar sahnede **yatay şeritlerde** yüzüp geçer. Şerit ne kadar derinse balık
@@ -51,10 +65,13 @@ geldiği anda bırakırsın.
   pencere açıktır; o pencerede bırakırsan yakalarsın. Tam ortasında yakalarsan
   "isabetli" sayılır (bkz. Tempo, ×2).
 
-> **Değiştirilebilir karar:** Kanca sabit-dikey iniyor, balıklar yatay geçiyor.
-> Alternatif, Gold Miner'ın birebir kopyası: kancayı sarkaç gibi sallandırıp
-> açıyı zamanlamak. Balıkçı temasına dikey-hat + geçen balık daha doğal oturdu
-> ve mobil dokunmaya daha yakın; ama sallanan kanca istenirse buraya döner.
+> **Karar güncellendi:** Kanca artık **sarkaç**. Teknenin altında sürekli
+> sallanıyor, dokunuş onu o anki açıyla salıyor. Sabit-dikey inişte dokunuş
+> "nereye" sorusuydu ve her seferinde en derini seçmek doğru cevaptı; sarkaçta
+> soru "ne zaman"a dönüyor ve gerçek bir karar doğuyor: **dik atarsan derine,
+> eğik atarsan uzağa** gidersin. Aynı misina boyuyla iki farklı hedef kümesi.
+> Beceri tavanı da buradan geliyor — idle oyunda "aktif oynamak neden değerli"
+> sorusunun cevabı.
 
 ### Tempo — kanca neden yavaş
 

@@ -408,6 +408,11 @@ html, body {
 /* --- Dikey ekran: surgu alttan gelir ------------------------------------- */
 
 @media (orientation: portrait), (max-width: 620px) {
+  #combo-pill {
+    top: calc(66px + var(--safe-t));
+    left: calc(12px + var(--safe-l));
+  }
+
   #panel {
     top: auto;
     left: 0;
@@ -436,13 +441,12 @@ html, body {
 
 #combo-pill {
   position: absolute;
-  top: calc(52px + var(--safe-t));
-  left: 50%;
-  transform: translateX(-50%);
+  top: calc(10px + var(--safe-t));
+  left: calc(280px + var(--safe-l));
   display: flex;
   align-items: baseline;
-  gap: 5px;
-  padding: 5px 12px;
+  gap: 4px;
+  padding: 4px 10px;
   border-radius: 999px;
   pointer-events: none;
   z-index: 5;
@@ -454,7 +458,7 @@ html, body {
 }
 
 #combo-val {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1;

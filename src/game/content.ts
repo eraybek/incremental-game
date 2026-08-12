@@ -208,6 +208,12 @@ export function comboCapAt(level: number): number {
   return 3 + level * 0.5;
 }
 
+/**
+ * Oyuna kac oltayla baslanir. Tek oltayla ekran cogu zaman olu kaliyordu;
+ * ikinci olta daha ilk dakikada sahnede surekli bir sey olmasini sagliyor.
+ */
+export const BASE_RODS = 2;
+
 export const UPGRADES: Upgrade[] = [
   {
     id: 'line', name: 'Misina', sprite: { sheet: 'gear', i: 12 },
@@ -247,16 +253,16 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'rods', name: 'Ekstra Olta', sprite: { sheet: 'gear', i: 1 },
     desc: 'Aynı anda {v} olta kullanabiliyorsun.',
-    baseCost: 350, growth: 4.2, maxLevel: 7, track: 'idle',
-    valueAt: (l) => `${1 + l}`,
-    revealAt: 180,
+    baseCost: 220, growth: 3.6, maxLevel: 7, track: 'idle',
+    valueAt: (l) => `${BASE_RODS + l}`,
+    revealAt: 60,
   },
   {
     id: 'autocast', name: 'Otomatik Olta', sprite: { sheet: 'gear', i: 35 },
     desc: 'Odakta olmayan oltalar {v} kendiliğinden iniyor.',
-    baseCost: 2500, growth: 1.62, maxLevel: 40, track: 'idle',
+    baseCost: 600, growth: 1.55, maxLevel: 40, track: 'idle',
     valueAt: (l) => (l === 0 ? 'kapalı' : `${autoCastDelayAt(l).toFixed(2)} sn'de bir`),
-    revealAt: 1500,
+    revealAt: 300,
   },
   {
     id: 'master', name: 'Usta Balıkçı', sprite: { sheet: 'gear', i: 31 },

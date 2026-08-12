@@ -73,8 +73,15 @@ export interface Rod {
   phase: RodPhase;
   /** Teknenin (yuzeydeki) sabit yatay konumu (-1..1). */
   homeX: number;
-  /** Bu inisin kanca sutunu (-1..1); dokunulan x. Kanca dumduz buradan iner. */
+  /** Kancanin su anki yatay konumu (-1..1); aci ve ip boyundan turetilir. */
   hookX: number;
+  /**
+   * Sarkac acisi (radyan). 0 = dumduz asagi, pozitif = saga.
+   * Bosta salinir; birakildigi andaki deger inis boyunca sabit kalir.
+   */
+  angle: number;
+  /** Salinan misinanin boyu (metre). Derinlik = len * cos(aci). */
+  len: number;
   /** Kancanin hedef derinligi (metre). */
   targetDepth: number;
   /** Kancanin su anki derinligi (metre). */
