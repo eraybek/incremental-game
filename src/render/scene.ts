@@ -1,6 +1,7 @@
 import type { RunManager } from '../game/run';
 import { RARITY_COLOR, SCENE_SPRITES } from '../game/content';
 import { loadImage } from './assets';
+import { Fx } from './fx';
 
 export interface AimState {
   active: boolean;
@@ -32,7 +33,7 @@ function drawSpriteFit(
 }
 
 /** The magnet art has its poles pointing up, so a facing of `angle` needs a
- *  quarter turn added on top. */
+ *  quarter turn added on top. `stretch` squashes along the facing axis. */
 function drawSpriteFacing(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -40,6 +41,7 @@ function drawSpriteFacing(
   cy: number,
   maxSize: number,
   angle: number,
+  stretch = 0,
 ): void {
   if (!img.complete || img.naturalWidth === 0) return;
   const scale = maxSize / Math.max(img.naturalWidth, img.naturalHeight);
@@ -48,6 +50,8 @@ function drawSpriteFacing(
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(angle + Math.PI / 2);
+  // Volume-preserving squash: longer along the direction of travel, thinner across.
+  ctx.scale(1 - stretch * 0.35, 1 + stretch * 0.45);
   ctx.drawImage(img, -w / 2, -h / 2, w, h);
   ctx.restore();
 }
@@ -57,6 +61,9 @@ export class Scene {
   private canvas: HTMLCanvasElement;
   private width = 800;
   private height = 420;
+  readonly fx = new Fx();
+  /** Decaying 0..1 squash applied to the magnet right after a launch or hit. */
+  private squash = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -65,6 +72,11 @@ export class Scene {
     this.ctx = ctx;
     loadImage(SCENE_SPRITES.magnet);
     loadImage(SCENE_SPRITES.hazardTile);
+  }
+
+  /** Kick the magnet's squash — 1 is a full stretch, decaying over ~0.25s. */
+  punch(amount = 1): void {
+    this.squash = Math.min(1, this.squash + amount);
   }
 
   resize(cssWidth: number, cssHeight: number): void {
@@ -240,14 +252,34 @@ export class Scene {
     ctx.restore();
 
     // One sprite, one size, always — but it turns so the poles lead the way.
-    drawSpriteFacing(ctx, loadImage(SCENE_SPRITES.magnet), m.pos.x, m.pos.y, m.radius * 2.2, m.facing);
+    drawSpriteFacing(
+      ctx,
+      loadImage(SCENE_SPRITES.magnet),
+      m.pos.x,
+      m.pos.y,
+      m.radius * 2.2,
+      m.facing,
+      this.squash,
+    );
   }
 
-  draw(run: RunManager, aim: AimState): void {
+  draw(run: RunManager, aim: AimState, dt: number): void {
+    this.squash = Math.max(0, this.squash - dt * 4.5);
+    this.fx.update(dt);
+
+    // The frame is drawn outside the shake so the bay itself stays put and only
+    // its contents rattle.
     this.drawFloor(run);
+
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(this.fx.offsetX, this.fx.offsetY);
     this.drawBoardObjects(run);
     this.drawAim(run, aim);
     this.drawMagnet(run);
+    this.fx.draw(ctx);
+    ctx.restore();
+
     this.drawFrame(run);
   }
 }

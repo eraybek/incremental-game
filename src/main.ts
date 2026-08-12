@@ -5,6 +5,8 @@ import { Ui } from './ui/ui';
 import { loadState, resetProgress } from './game/state';
 import { ITEMS, UPGRADES, MILESTONES, UI_SPRITES, SCENE_SPRITES } from './game/content';
 import { preload } from './render/assets';
+import { RARITY_COLOR } from './game/content';
+import { initAudio, playCollect, playSfx, resetCombo } from './audio/sfx';
 
 const wrap = document.getElementById('canvas-wrap') as HTMLElement;
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -16,6 +18,8 @@ const persistent = loadState();
 const run = new RunManager(persistent);
 const scene = new Scene(canvas);
 const ui = new Ui({ overlay: uiRoot, top: topBar, bottom: bottomBar }, run, persistent);
+
+initAudio(!persistent.muted);
 
 void preload([
   ...ITEMS.map((i) => i.sprite),
@@ -46,6 +50,8 @@ let introTimer: number | undefined;
  *  only drops in once the card is gone. */
 function openShiftIntro(): void {
   window.clearTimeout(introTimer);
+  playSfx('shiftStart');
+  scene.fx.clear();
   run.prepareShift();
   ui.resetHaul();
   ui.showIntro(run.currentShift);
@@ -55,6 +61,8 @@ function openShiftIntro(): void {
 function enterArena(): void {
   window.clearTimeout(introTimer);
   if (run.phase === 'playing') return;
+  scene.fx.clear();
+  resetCombo();
   run.beginShift();
   ui.setScreen('playing');
 }
@@ -73,7 +81,38 @@ ui.onResetProgress = () => {
   returnToMenu();
 };
 
-run.onRunEnd = (payout) => ui.showResult(payout);
+// ------------------------------------------------------------- game feel
+
+run.onLaunch = () => {
+  scene.punch(1);
+  playSfx('launch');
+};
+
+run.onBounce = (x, y, vx, vy, speed01) => {
+  const len = Math.hypot(vx, vy) || 1;
+  scene.fx.spray(x, y, vx / len, vy / len, '#ffd166', 6 + Math.round(speed01 * 8), 190 * (0.4 + speed01));
+  scene.fx.shake(2 + speed01 * 7);
+  scene.punch(0.5 * speed01);
+  playSfx('bounce', 0.85 + speed01 * 0.5);
+};
+
+run.onCollect = (item, x, y, value) => {
+  const color = RARITY_COLOR[item.rarity];
+  const rare = item.rarity !== 'common';
+  scene.fx.ring(x, y, run.magnet.radius * 1.9, color, rare ? 4 : 2.5);
+  scene.fx.burst(x, y, color, rare ? 14 : 7, rare ? 210 : 140);
+  scene.fx.floatText(x, y - run.magnet.radius * 0.6, `+${value}`, rare ? color : '#ffd166');
+  if (rare) scene.fx.shake(3);
+  playCollect(rare);
+  ui.pulseHaul();
+};
+
+run.onRunEnd = (payout) => {
+  resetCombo();
+  playSfx('shiftEnd');
+  ui.showResult(payout);
+};
+
 ui.onFinishShift = () => run.finishShift();
 
 // Tapping through the intro skips the remaining wait.
@@ -157,13 +196,23 @@ canvas.addEventListener('pointercancel', endAim);
 
 // ------------------------------------------------------------------ loop
 
+let lastWarnSecond = -1;
 let lastTime = performance.now();
 function loop(now: number): void {
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
 
-  if (ui.screen === 'playing') run.update(dt);
-  scene.draw(run, aim);
+  if (ui.screen === 'playing') {
+    run.update(dt);
+    const whole = Math.ceil(run.timeRemaining);
+    if (run.phase === 'playing' && whole <= 3 && whole > 0 && whole !== lastWarnSecond) {
+      lastWarnSecond = whole;
+      playSfx('warn', 1 + (3 - whole) * 0.12);
+    } else if (whole > 3) {
+      lastWarnSecond = -1;
+    }
+  }
+  scene.draw(run, aim, dt);
   ui.tick();
 
   requestAnimationFrame(loop);

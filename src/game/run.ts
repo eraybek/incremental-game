@@ -68,6 +68,10 @@ export class RunManager {
   lastPayout: PayoutResult | null = null;
 
   onRunEnd?: (payout: PayoutResult) => void;
+  /** Fired where a piece was absorbed, with the coin value it will be worth. */
+  onCollect?: (item: ItemDef, x: number, y: number, value: number) => void;
+  onLaunch?: () => void;
+  onBounce?: (x: number, y: number, dirX: number, dirY: number, speed01: number) => void;
 
   /** Set once the board has spawned, so an empty board only ends the shift
    *  after there was actually something to clear. */
@@ -184,6 +188,7 @@ export class RunManager {
     if (p < MIN_LAUNCH_POWER) return false;
     this.magnet.launch(dirX, dirY, this.launchSpeed(p));
     this.shotsRemaining -= 1;
+    this.onLaunch?.();
     return true;
   }
 
@@ -242,6 +247,12 @@ export class RunManager {
         obj.carried = true;
         collected = true;
         this.magnet.attach({ itemId: obj.item.id, weight: obj.item.weight });
+        this.onCollect?.(
+          obj.item,
+          obj.pos.x,
+          obj.pos.y,
+          Math.round(obj.item.value * lootValueMultiplier(this.state)),
+        );
         continue;
       }
 
@@ -264,7 +275,18 @@ export class RunManager {
 
     this.timeRemaining -= dt;
     this.updateBoardEntrance(dt);
+    const speedBefore = Math.hypot(this.magnet.vel.x, this.magnet.vel.y);
     this.magnet.update(dt, this.arenaRect(), this.decel());
+    if (this.magnet.justBounced) {
+      const reference = this.diagonal() * SPEED_PER_DIAGONAL;
+      this.onBounce?.(
+        this.magnet.pos.x,
+        this.magnet.pos.y,
+        this.magnet.vel.x,
+        this.magnet.vel.y,
+        Math.min(1, speedBefore / reference),
+      );
+    }
     this.updateAttraction(dt);
 
     if (this.timeRemaining <= 0) {

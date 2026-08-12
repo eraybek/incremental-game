@@ -16,7 +16,13 @@ export interface ArenaRect {
 export const RESTITUTION = 0.8;
 export const STOP_SPEED_FACTOR = 0.04;
 
-/** Advances one body against the arena walls. Shared by the live magnet and the aim preview. */
+export interface StepResult {
+  stopped: boolean;
+  /** Set on the frame the body rebounded off a wall, for impact feedback. */
+  bounced: boolean;
+}
+
+/** Advances one body against the arena walls. */
 export function stepBody(
   pos: Vec2,
   vel: Vec2,
@@ -24,7 +30,7 @@ export function stepBody(
   rect: ArenaRect,
   decel: number,
   dt: number,
-): boolean {
+): StepResult {
   pos.x += vel.x * dt;
   pos.y += vel.y * dt;
 
@@ -33,20 +39,26 @@ export function stepBody(
   const minY = rect.minY + radius;
   const maxY = rect.maxY - radius;
 
+  let bounced = false;
+
   if (pos.x < minX) {
     pos.x = minX;
     vel.x = Math.abs(vel.x) * RESTITUTION;
+    bounced = true;
   } else if (pos.x > maxX) {
     pos.x = maxX;
     vel.x = -Math.abs(vel.x) * RESTITUTION;
+    bounced = true;
   }
 
   if (pos.y < minY) {
     pos.y = minY;
     vel.y = Math.abs(vel.y) * RESTITUTION;
+    bounced = true;
   } else if (pos.y > maxY) {
     pos.y = maxY;
     vel.y = -Math.abs(vel.y) * RESTITUTION;
+    bounced = true;
   }
 
   const speed = Math.hypot(vel.x, vel.y);
@@ -54,12 +66,12 @@ export function stepBody(
   if (newSpeed <= decel * STOP_SPEED_FACTOR) {
     vel.x = 0;
     vel.y = 0;
-    return true;
+    return { stopped: true, bounced };
   }
   const scale = newSpeed / speed;
   vel.x *= scale;
   vel.y *= scale;
-  return false;
+  return { stopped: false, bounced };
 }
 
 export class Magnet {
@@ -69,6 +81,8 @@ export class Magnet {
   isMoving = false;
   carried: CarriedItem[] = [];
   justStopped = false;
+  /** Set on the frame the magnet rebounded off a wall. */
+  justBounced = false;
   /** Angle the poles point at, in radians. Follows the aim, then the travel
    *  direction, and holds its last value once the magnet stops. */
   facing = -Math.PI / 2;
@@ -88,6 +102,7 @@ export class Magnet {
     this.isMoving = false;
     this.carried = [];
     this.justStopped = false;
+    this.justBounced = false;
   }
 
   launch(dirX: number, dirY: number, speed: number): void {
@@ -105,12 +120,14 @@ export class Magnet {
 
   update(dt: number, rect: ArenaRect, decel: number): void {
     this.justStopped = false;
+    this.justBounced = false;
     if (!this.isMoving) return;
 
-    const stopped = stepBody(this.pos, this.vel, this.radius, rect, decel, dt);
+    const step = stepBody(this.pos, this.vel, this.radius, rect, decel, dt);
+    this.justBounced = step.bounced;
     // Keep the poles pointed along the path, including after a wall bounce.
-    if (!stopped) this.facing = Math.atan2(this.vel.y, this.vel.x);
-    if (stopped) {
+    if (!step.stopped) this.facing = Math.atan2(this.vel.y, this.vel.x);
+    if (step.stopped) {
       this.isMoving = false;
       this.justStopped = true;
     }

@@ -7,8 +7,22 @@ import {
   UPGRADES,
   upgradeCost,
 } from '../game/content';
-import { buyUpgrade, canAfford } from '../game/state';
-import { button, el, img, show } from './dom';
+import { buyUpgrade, canAfford, saveState } from '../game/state';
+import { isAudioEnabled, playSfx, setAudioEnabled } from '../audio/sfx';
+import { button as rawButton, el, img, show } from './dom';
+
+/** Every button in the UI ticks. */
+function button(
+  label: string,
+  className: string,
+  onClick: () => void,
+  iconSrc?: string,
+): HTMLButtonElement {
+  return rawButton(label, className, () => {
+    playSfx('click');
+    onClick();
+  }, iconSrc);
+}
 
 /** Every distinct thing the player can be looking at. `playing` is the only one
  *  with no full-screen panel over the arena. */
@@ -65,6 +79,7 @@ export class Ui {
   private upgradeCoins!: HTMLElement;
   private collectionGrid!: HTMLElement;
   private collectionCount!: HTMLElement;
+  private soundBtn!: HTMLButtonElement;
 
   /** Where Geliştirme / Koleksiyon / Ayarlar should return to. */
   private returnTo: ScreenName = 'menu';
@@ -292,8 +307,10 @@ export class Ui {
         : `${payout.itemCount} parça hurda${payout.newCount > 0 ? ` · ${payout.newCount} yeni keşif` : ''}`;
 
     this.resultTable.innerHTML = '';
+    let index = 0;
     for (const line of payout.lines) {
       const row = el('div', 'result-row');
+      row.style.setProperty('--i', `${index++}`);
       const icon = el('div', `result-icon rarity-${line.item.rarity}`);
       icon.appendChild(img(line.item.sprite));
 
@@ -312,13 +329,32 @@ export class Ui {
     }
 
     this.resultTotal.innerHTML = '';
+    const totalValue = el('span', 'result-total-value', '0');
     this.resultTotal.append(
       el('span', 'result-total-label', 'Toplam kazanç'),
       img(UI_SPRITES.coin),
-      el('span', 'result-total-value', `${payout.total}`),
+      totalValue,
     );
+    this.countUp(totalValue, payout.total);
 
     this.setScreen('result');
+  }
+
+  /** Tallies the payout up instead of dropping the final number in. */
+  private countUp(node: HTMLElement, target: number): void {
+    if (target <= 0) {
+      node.textContent = '0';
+      return;
+    }
+    const duration = 650;
+    const start = performance.now();
+    const step = (now: number): void => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      node.textContent = `${Math.round(target * eased)}`;
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   }
 
   // --------------------------------------------------------------- upgrades
@@ -377,7 +413,12 @@ export class Ui {
       buy.disabled = maxed || !canAfford(this.state, def.id);
       buy.textContent = maxed ? 'MAX' : `${upgradeCost(def, level)}`;
       buy.addEventListener('click', () => {
-        if (buyUpgrade(this.state, def.id)) this.renderUpgrades();
+        if (buyUpgrade(this.state, def.id)) {
+          playSfx('upgrade');
+          this.renderUpgrades();
+        } else {
+          playSfx('click');
+        }
       });
 
       row.append(img(def.icon), info, buy);
@@ -430,8 +471,12 @@ export class Ui {
       el('h2', undefined, 'Ayarlar'),
     );
 
+    this.soundBtn = button('', 'big-btn alt', () => this.toggleSound());
+    this.updateSoundLabel();
+
     const list = el('div', 'settings-list');
     list.append(
+      this.soundBtn,
       button('Ana Menüye Dön', 'big-btn alt', () => this.onBackToMenu?.()),
       button('İlerlemeyi Sıfırla', 'danger-btn', () => this.confirmReset()),
     );
@@ -444,6 +489,19 @@ export class Ui {
 
     sheet.append(head, list, note);
     panel.appendChild(sheet);
+  }
+
+  private toggleSound(): void {
+    const on = !isAudioEnabled();
+    setAudioEnabled(on);
+    this.state.muted = !on;
+    saveState(this.state);
+    this.updateSoundLabel();
+  }
+
+  private updateSoundLabel(): void {
+    this.soundBtn.querySelector('span')!.textContent = isAudioEnabled() ? 'Ses: Açık' : 'Ses: Kapalı';
+    this.soundBtn.classList.toggle('off', !isAudioEnabled());
   }
 
   private confirmReset(): void {
@@ -487,6 +545,13 @@ export class Ui {
     for (let i = 0; i < pips.length; i++) {
       pips[i].classList.toggle('spent', i >= this.run.shotsRemaining);
     }
+  }
+
+  /** Flashes the haul strip when something lands in it. */
+  pulseHaul(): void {
+    this.haulStrip.classList.remove('pulse');
+    void this.haulStrip.offsetWidth;
+    this.haulStrip.classList.add('pulse');
   }
 
   /** Called when a shift starts so the strip does not carry over stale loot. */

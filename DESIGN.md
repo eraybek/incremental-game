@@ -164,6 +164,27 @@ Vardiya sonu raporu ürün bazlı kırılım gösterir: hangi üründen kaç ade
 
 Barlar arenanın **üstünde ve altında ayrı satırlar** olarak durur, sahnenin üzerine binmez: canvas ikisinin arasında kalan alanı alır. Üst bar para/süre/atış ve sağda ayarlar; alt bar taşınan yük, toplanan hurda şeridi ve sağda "Vardiyayı Bitir". Barlar panel açıkken de yerini korur (sadece içerikleri gizlenir), böylece arena hiçbir ekran geçişinde boyut değiştirmez.
 
+### Ses
+
+[ZzFX](https://github.com/KilledByAPixel/ZzFX) (MIT, ~1 KB) ile **kodda üretilen** sesler; ses dosyası yok. Tüm presetler `src/audio/sfx.ts` içindeki tek bir bankada duruyor ve sayıları düzenleyerek yeniden akort edilebiliyor — başka hiçbir yer bu sayıları okumuyor.
+
+- Sesler hurdalık temasına göre seçildi: bobin boşalması (atış), metal tokuşması (duvar), tık (toplama), fabrika kornası (vardiya başı), yazarkasa (vardiya sonu).
+- Ardışık toplamalar **combo** ile perdeyi kademeli yükseltir (900 ms pencere, 12 adım); toplama serisi liste gibi değil akış gibi hissediliyor.
+- Tarayıcılar audio context'i ilk gerçek dokunuşa kadar askıda tutuyor, bu yüzden ilk `pointerdown`/`keydown` onu resume ediyor.
+- Ayarlardan açılıp kapatılabiliyor; tercih kayıtta tutuluyor ve **ilerleme sıfırlansa bile korunuyor** (cihaz tercihi, ilerleme değil).
+
+`npm run check:sfx` presetleri offline render edip süre ve seviye raporlar — akort değiştirince dokuzunu tek tek dinlemeden kontrol etmek için. Presetleri doğrudan `sfx.ts`'ten okur, ikinci bir kopya yoktur. Mevcut durum: hepsi duyulabilir genlikte (tepe 0.14–0.27), kırpılmıyor, süreler anlamlı (klik 0.06 sn ↔ korna 1.13 sn).
+
+### Game feel / juice
+
+Referans: Jonasson & Purho, "Juice it or Lose it". `src/render/fx.ts` içinde kısa ömürlü, tamamen kozmetik bir katman var — simülasyona geri beslemesi yok.
+
+- **Toplama:** genişleyen halka + kıvılcım + yukarı süzülen `+değer` yazısı (rarity rengiyle) ve HUD şeridinde nabız.
+- **Atış:** mıknatısta hacmi koruyan squash (gidiş ekseninde uzar, dikinde incelir).
+- **Duvar:** hıza göre ölçeklenen kıvılcım spreyi ve kısa screen shake. Shake yalnızca sahne içeriğine uygulanır; çerçeve sabit kalır, böylece sarsıntı bay'in kendisini değil içindekileri titretiyor gibi okunur.
+- **Vardiya raporu:** satırlar sırayla süzülerek gelir, toplam sıfırdan sayarak artar.
+- `prefers-reduced-motion` seçen oyuncularda bu animasyonlar kapanır.
+
 ### Sunum kararları
 
 - **Mıknatıs tek sprite, sabit boyut.** Durum bazlı sprite değişimi (idle/active/moving) kaldırıldı; farklı kırpma oranları yüzünden mıknatıs nişan alırken büyüyor gibi görünüyordu.

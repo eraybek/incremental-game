@@ -15,6 +15,7 @@ export function createInitialState(): PersistentState {
     upgrades: emptyUpgrades(),
     discovered: [],
     shiftsDone: 0,
+    muted: false,
   };
 }
 
@@ -29,6 +30,7 @@ export function loadState(): PersistentState {
       upgrades: { ...base.upgrades, ...(parsed.upgrades ?? {}) },
       discovered: Array.isArray(parsed.discovered) ? parsed.discovered : [],
       shiftsDone: typeof parsed.shiftsDone === 'number' ? parsed.shiftsDone : 0,
+      muted: parsed.muted === true,
     };
   } catch {
     return createInitialState();
@@ -100,5 +102,6 @@ export function resetProgress(state: PersistentState): void {
   state.upgrades = fresh.upgrades;
   state.discovered = fresh.discovered;
   state.shiftsDone = fresh.shiftsDone;
+  // Deliberately keeps the audio preference: it is a device setting, not progress.
   saveState(state);
 }

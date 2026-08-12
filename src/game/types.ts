@@ -53,4 +53,5 @@ export interface PersistentState {
   discovered: string[];
   /** Number of shifts completed — the next one is `shiftsDone + 1`. */
   shiftsDone: number;
+  muted: boolean;
 }

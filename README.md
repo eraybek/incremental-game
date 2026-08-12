@@ -15,6 +15,14 @@ npm run dev
 
 Tarayıcıda `http://localhost:5173` açılır. Mobil önizleme için tarayıcı dev tools'ta **yatay** bir cihaz simülasyonu (ör. 844×390) kullanın; portrait'te "telefonu yatay çevir" ekranı gösterilir.
 
+## Ses
+
+Sesler [ZzFX](https://github.com/KilledByAPixel/ZzFX) ile kodda üretilir; ses dosyası yoktur. Tüm presetler `src/audio/sfx.ts` içindeki tek bankada; akort etmek için oradaki sayıları değiştirmek yeterli.
+
+```bash
+npm run check:sfx   # presetleri offline render edip süre/seviye raporlar
+```
+
 ## Build
 
 ```bash
