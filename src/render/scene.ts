@@ -26,6 +26,27 @@ function drawSpriteFit(
   ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h));
 }
 
+/** The magnet art has its poles pointing up, so a facing of `angle` needs a
+ *  quarter turn added on top. */
+function drawSpriteFacing(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  cx: number,
+  cy: number,
+  maxSize: number,
+  angle: number,
+): void {
+  if (!img.complete || img.naturalWidth === 0) return;
+  const scale = maxSize / Math.max(img.naturalWidth, img.naturalHeight);
+  const w = img.naturalWidth * scale;
+  const h = img.naturalHeight * scale;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle + Math.PI / 2);
+  ctx.drawImage(img, -w / 2, -h / 2, w, h);
+  ctx.restore();
+}
+
 export class Scene {
   private ctx: CanvasRenderingContext2D;
   private canvas: HTMLCanvasElement;
@@ -169,7 +190,7 @@ export class Scene {
     ctx.lineTo(tipX, tipY);
     ctx.stroke();
 
-    const head = r * 0.42;
+    const head = r * 0.5;
     const ang = Math.atan2(aim.dirY, aim.dirX);
     ctx.fillStyle = '#ffd166';
     ctx.beginPath();
@@ -179,14 +200,6 @@ export class Scene {
     ctx.closePath();
     ctx.fill();
 
-    // Power arc, drawn outside the magnet sprite so it is not hidden by it.
-    ctx.globalAlpha = 0.9;
-    ctx.strokeStyle = '#ffd166';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(m.x, m.y, r * 1.32, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * aim.power01);
-    ctx.stroke();
-
     ctx.restore();
   }
 
@@ -194,19 +207,28 @@ export class Scene {
     const ctx = this.ctx;
     const m = run.magnet;
 
-    // No range ring: the aim arrow carries the intent, and a circle the size of
-    // the field cluttered the arena. A tight glow keeps the magnet findable.
-    const glowR = m.radius * 1.5;
-    const glow = ctx.createRadialGradient(m.pos.x, m.pos.y, m.radius * 0.5, m.pos.x, m.pos.y, glowR);
-    glow.addColorStop(0, 'rgba(255, 92, 92, 0.22)');
-    glow.addColorStop(1, 'rgba(255, 92, 92, 0)');
-    ctx.fillStyle = glow;
+    // The collection radius: the field is always on, so it is always shown.
+    const range = run.attractionRangePx();
+    const field = ctx.createRadialGradient(m.pos.x, m.pos.y, range * 0.3, m.pos.x, m.pos.y, range);
+    field.addColorStop(0, 'rgba(125, 211, 252, 0.07)');
+    field.addColorStop(1, 'rgba(125, 211, 252, 0)');
+    ctx.fillStyle = field;
     ctx.beginPath();
-    ctx.arc(m.pos.x, m.pos.y, glowR, 0, Math.PI * 2);
+    ctx.arc(m.pos.x, m.pos.y, range, 0, Math.PI * 2);
     ctx.fill();
 
-    // One sprite, one size, always — no state swaps, no scaling.
-    drawSpriteFit(ctx, loadImage(SCENE_SPRITES.magnet), m.pos.x, m.pos.y, m.radius * 2.2);
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.strokeStyle = '#7dd3fc';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 7]);
+    ctx.beginPath();
+    ctx.arc(m.pos.x, m.pos.y, range, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // One sprite, one size, always — but it turns so the poles lead the way.
+    drawSpriteFacing(ctx, loadImage(SCENE_SPRITES.magnet), m.pos.x, m.pos.y, m.radius * 2.2, m.facing);
   }
 
   draw(run: RunManager, aim: AimState): void {

@@ -158,11 +158,15 @@ Her karede, menzil içindeki her obje `PULL_SPEED × (power / weight) × falloff
 
 Vardiya sonu raporu ürün bazlı kırılım gösterir: hangi üründen kaç adet, adet başına kaç para, satır toplamı ve genel toplam. Uzun raporlarda tablo kayar, toplam ve butonlar sabit kalır.
 
+### HUD yerleşimi
+
+Barlar arenanın **üstünde ve altında ayrı satırlar** olarak durur, sahnenin üzerine binmez: canvas ikisinin arasında kalan alanı alır. Üst bar para/süre/atış ve sağda ayarlar; alt bar taşınan yük, toplanan hurda şeridi ve sağda "Vardiyayı Bitir". Barlar panel açıkken de yerini korur (sadece içerikleri gizlenir), böylece arena hiçbir ekran geçişinde boyut değiştirmez.
+
 ### Sunum kararları
 
 - **Mıknatıs tek sprite, sabit boyut.** Durum bazlı sprite değişimi (idle/active/moving) kaldırıldı; farklı kırpma oranları yüzünden mıknatıs nişan alırken büyüyor gibi görünüyordu.
 - **Nişan alırken sonuç gösterilmiyor.** Yörünge tahmini kaldırıldı; sadece lastik bandı, yön oku ve güç yayı var. Sekmeyi okumak oyuncunun işi.
-- **Çekim menzili halkası çizilmiyor.** Alan büyüklüğünde bir daire arenayı kalabalıklaştırıyordu; niyeti nişan oku zaten taşıyor. Mıknatısın bulunabilir kalması için sadece gövdesine yakın küçük bir parıltı var. Çekilen objelere kesikli bağ çizilir — bunlar dairenin aksine neyin çekildiğini bilgi olarak gösteriyor.
+- **Çekim menzili halkası çizilir** — toplama alanını görmek oyuncunun temel karar bilgisi. Nişan alırken güç yayı çizilmez; yön ve güç oktan okunur. Çekilen objelere kesikli bağ çizilir.
 - **Zemin kasıtlı olarak düz:** lacivert taban + seyrek yatay çizgiler. Gölge, doku, plaka ve leke yok — sahnedeki en dikkat çekici şeyler loot ve mıknatıs olmalı.
 - **Toplanan loot mıknatısın üzerinde değil HUD'da**, tek sıra ve kısa tutulur: en son toplanan birkaç tür gösterilir, gerisi `+N` sayacına düşer. Tam döküm zaten vardiya raporunda. Mıknatısın çevresine dizildiğinde sahneyi kalabalıklaştırıyor ve çekim alanının parçasıymış gibi okunuyordu.
 - **Vardiya kartı sahnenin üzerinde açılır.** Arena hafif bir perdenin ardından görünür ve içinde yalnızca mıknatıs vardır; hurda ancak kart kalktıktan sonra düşmeye başlar, böylece oyuncu yazıyı okurken board'un dolmasını kaçırmaz.

@@ -5,15 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#080c1a" />
     <title>Magnet Incremental</title>
-    <link rel="icon" href="./assets/magnet/magnet_idle.png" />
+    <link rel="icon" href="./assets/magnet/magnet.png" />
   </head>
   <body>
+    <!-- The bars sit outside the arena rather than floating over it, so nothing
+         in the HUD can ever cover the playfield. -->
     <div id="app">
+      <div id="topbar" class="gamebar"></div>
       <div id="canvas-wrap">
         <canvas id="game-canvas"></canvas>
       </div>
-      <div id="ui-root"></div>
+      <div id="bottombar" class="gamebar"></div>
     </div>
+    <div id="ui-root"></div>
     <div id="rotate-hint">
       <div class="phone"></div>
       <p>Telefonu yatay çevir</p>

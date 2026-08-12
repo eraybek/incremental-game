@@ -9,11 +9,13 @@ import { preload } from './render/assets';
 const wrap = document.getElementById('canvas-wrap') as HTMLElement;
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const uiRoot = document.getElementById('ui-root') as HTMLElement;
+const topBar = document.getElementById('topbar') as HTMLElement;
+const bottomBar = document.getElementById('bottombar') as HTMLElement;
 
 const persistent = loadState();
 const run = new RunManager(persistent);
 const scene = new Scene(canvas);
-const ui = new Ui(uiRoot, run, persistent);
+const ui = new Ui({ overlay: uiRoot, top: topBar, bottom: bottomBar }, run, persistent);
 
 void preload([
   ...ITEMS.map((i) => i.sprite),
@@ -72,6 +74,7 @@ ui.onResetProgress = () => {
 };
 
 run.onRunEnd = (payout) => ui.showResult(payout);
+ui.onFinishShift = () => run.finishShift();
 
 // Tapping through the intro skips the remaining wait.
 uiRoot.addEventListener('pointerdown', (e) => {
@@ -116,6 +119,8 @@ function updateAimFromPoint(px: number, py: number): void {
   aim.dirX = dx;
   aim.dirY = dy;
   aim.power01 = Math.min(1, dist / (run.scaleRef * PULL_FRACTION));
+  // Turn the magnet in place while aiming so its poles lead the shot.
+  run.magnet.facing = Math.atan2(dy, dx);
 }
 
 canvas.addEventListener('pointerdown', (e) => {

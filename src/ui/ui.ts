@@ -27,15 +27,25 @@ function fmtTime(seconds: number): string {
   return `0:${s.toString().padStart(2, '0')}`;
 }
 
+export interface UiRoots {
+  /** Absolute overlay that hosts the full-screen panels. */
+  overlay: HTMLElement;
+  /** Solid bar above the arena. */
+  top: HTMLElement;
+  /** Solid bar below the arena. */
+  bottom: HTMLElement;
+}
+
 export class Ui {
   private root: HTMLElement;
+  private topBar: HTMLElement;
+  private bottomBar: HTMLElement;
   private run: RunManager;
   private state: PersistentState;
 
   private screens = new Map<ScreenName, HTMLElement>();
   private current: ScreenName = 'menu';
 
-  private hud!: HTMLElement;
   private coinLabel!: HTMLElement;
   private timeLabel!: HTMLElement;
   private timePill!: HTMLElement;
@@ -62,13 +72,16 @@ export class Ui {
   onStartShift?: () => void;
   onBackToMenu?: () => void;
   onResetProgress?: () => void;
+  onFinishShift?: () => void;
 
-  constructor(root: HTMLElement, run: RunManager, state: PersistentState) {
-    this.root = root;
+  constructor(roots: UiRoots, run: RunManager, state: PersistentState) {
+    this.root = roots.overlay;
+    this.topBar = roots.top;
+    this.bottomBar = roots.bottom;
     this.run = run;
     this.state = state;
 
-    this.buildHud();
+    this.buildBars();
     this.buildMenu();
     this.buildIntro();
     this.buildResult();
@@ -91,7 +104,12 @@ export class Ui {
   setScreen(name: ScreenName): void {
     this.current = name;
     for (const [key, node] of this.screens) show(node, key === name);
-    show(this.hud, name === 'playing');
+
+    // The bars keep their space in every screen so the arena never changes
+    // size mid-flow; only their contents come and go.
+    const playing = name === 'playing';
+    this.topBar.classList.toggle('bar-idle', !playing);
+    this.bottomBar.classList.toggle('bar-idle', !playing);
 
     if (name === 'menu') this.refreshMenu();
     if (name === 'upgrades') this.renderUpgrades();
@@ -112,7 +130,7 @@ export class Ui {
     this.setScreen(this.returnTo);
   }
 
-  // -------------------------------------------------------------------- hud
+  // ------------------------------------------------------------------- bars
 
   private statPill(icon: string): { pill: HTMLElement; label: HTMLElement } {
     const pill = el('div', 'stat-pill');
@@ -121,10 +139,9 @@ export class Ui {
     return { pill, label };
   }
 
-  private buildHud(): void {
-    this.hud = el('div', 'hud');
-
-    const stats = el('div', 'hud-row');
+  private buildBars(): void {
+    // Top: run status on the left, settings on the right.
+    const stats = el('div', 'bar-group');
     const coin = this.statPill(UI_SPRITES.coin);
     this.coinLabel = coin.label;
     const time = this.statPill(UI_SPRITES.hourglass);
@@ -132,29 +149,32 @@ export class Ui {
     this.timeLabel = time.label;
     const shots = this.statPill(UI_SPRITES.target);
     this.shotsLabel = shots.label;
-    const load = this.statPill(UI_SPRITES.magnet);
-    this.loadLabel = load.label;
-    stats.append(coin.pill, time.pill, shots.pill, load.pill);
-
-    // Collected loot lives up here rather than clinging to the magnet, where it
-    // crowded the arena and read as part of the attraction field.
-    this.haulStrip = el('div', 'haul-strip');
-
-    const left = el('div', 'hud-left');
-    left.append(stats, this.haulStrip);
+    stats.append(coin.pill, time.pill, shots.pill);
 
     const settingsBtn = button('', 'icon-btn square', () => this.openSub('settings'), UI_SPRITES.settings);
     settingsBtn.title = 'Ayarlar';
-    const right = el('div', 'hud-right');
-    right.append(settingsBtn);
+    const topRight = el('div', 'bar-group');
+    topRight.append(settingsBtn);
 
-    this.hud.append(left, right);
-    this.root.appendChild(this.hud);
+    this.topBar.append(stats, topRight);
+
+    // Bottom: carried weight and the haul, then the finish button on the right.
+    const load = this.statPill(UI_SPRITES.magnet);
+    this.loadLabel = load.label;
+    this.haulStrip = el('div', 'haul-strip');
+
+    const bottomLeft = el('div', 'bar-group grow');
+    bottomLeft.append(load.pill, this.haulStrip);
+
+    const finishBtn = button('Vardiyayı Bitir', 'icon-btn finish', () => this.onFinishShift?.(), UI_SPRITES.play);
+    const bottomRight = el('div', 'bar-group');
+    bottomRight.append(finishBtn);
+
+    this.bottomBar.append(bottomLeft, bottomRight);
   }
 
-  /** Deliberately small: a long shift can collect a dozen item types and a full
-   *  list of them buried the arena. Show the most recent few and roll the rest
-   *  into a counter — the itemised breakdown belongs on the shift report. */
+  /** The bottom bar sits outside the arena, so the whole haul can be listed;
+   *  it scrolls sideways rather than growing over the playfield. */
   private renderHaul(): void {
     const counts = new Map<string, { item: ItemDef; count: number }>();
     for (const carried of this.run.magnet.carried) {
@@ -166,15 +186,7 @@ export class Ui {
     }
 
     this.haulStrip.innerHTML = '';
-    const all = Array.from(counts.values());
-    const shown = all.slice(-HAUL_CHIP_LIMIT);
-    const hidden = all.length - shown.length;
-
-    if (hidden > 0) {
-      this.haulStrip.appendChild(el('div', 'haul-more', `+${hidden}`));
-    }
-
-    for (const { item, count } of shown) {
+    for (const { item, count } of counts.values()) {
       const chip = el('div', `haul-chip rarity-${item.rarity}`);
       chip.title = item.name;
       chip.appendChild(img(item.sprite));
@@ -466,5 +478,3 @@ export class Ui {
 
 const ITEM_INDEX = new Map(ITEMS.map((i) => [i.id, i]));
 
-/** How many distinct item chips the in-game strip shows before collapsing. */
-const HAUL_CHIP_LIMIT = 5;

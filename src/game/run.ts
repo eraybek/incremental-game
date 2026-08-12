@@ -100,7 +100,7 @@ export class RunManager {
   }
 
   private applyMetrics(): void {
-    this.magnet.radius = this.scaleRef * 0.072;
+    this.magnet.radius = this.scaleRef * 0.052;
   }
 
   setCanvasSize(w: number, h: number): void {
@@ -165,6 +165,11 @@ export class RunManager {
     );
     this.boardHadObjects = this.board.length > 0;
     this.phase = 'playing';
+  }
+
+  /** Ends the shift on demand — the "finish shift" button in the bottom bar. */
+  finishShift(): void {
+    if (this.phase === 'playing') this.endShift();
   }
 
   canShoot(): boolean {

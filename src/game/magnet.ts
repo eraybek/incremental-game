@@ -69,6 +69,9 @@ export class Magnet {
   isMoving = false;
   carried: CarriedItem[] = [];
   justStopped = false;
+  /** Angle the poles point at, in radians. Follows the aim, then the travel
+   *  direction, and holds its last value once the magnet stops. */
+  facing = -Math.PI / 2;
 
   constructor(pos: Vec2, radius: number) {
     this.pos = { ...pos };
@@ -90,6 +93,7 @@ export class Magnet {
   launch(dirX: number, dirY: number, speed: number): void {
     this.vel.x = dirX * speed;
     this.vel.y = dirY * speed;
+    this.facing = Math.atan2(dirY, dirX);
     this.isMoving = true;
   }
 
@@ -104,6 +108,8 @@ export class Magnet {
     if (!this.isMoving) return;
 
     const stopped = stepBody(this.pos, this.vel, this.radius, rect, decel, dt);
+    // Keep the poles pointed along the path, including after a wall bounce.
+    if (!stopped) this.facing = Math.atan2(this.vel.y, this.vel.x);
     if (stopped) {
       this.isMoving = false;
       this.justStopped = true;

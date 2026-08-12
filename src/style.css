@@ -28,9 +28,44 @@ html, body {
   overscroll-behavior: none;
 }
 
-#app { position: fixed; inset: 0; }
-#canvas-wrap { position: absolute; inset: 0; touch-action: none; }
+/* Bars are laid out above and below the arena instead of floating over it, so
+   the canvas gets whatever is left and the HUD can never cover the playfield. */
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#canvas-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  touch-action: none;
+}
+
 #game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.gamebar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #070b16;
+  border-block: 1px solid var(--panel-border);
+  padding: 5px calc(env(safe-area-inset-right, 0px) + 9px) 5px calc(env(safe-area-inset-left, 0px) + 9px);
+  min-height: 44px;
+}
+
+#topbar { padding-top: calc(env(safe-area-inset-top, 0px) + 5px); }
+#bottombar { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5px); }
+
+/* Keeps the bar's height (and so the arena size) while a panel is up. */
+.bar-idle > * { visibility: hidden; }
+
+.bar-group { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.bar-group.grow { flex: 1; }
 
 #ui-root {
   position: fixed;
@@ -106,6 +141,7 @@ html, body {
 }
 
 .icon-btn.square { padding: 5px; }
+.icon-btn.finish { background: #b3452f; border-color: #e0674c; white-space: nowrap; }
 .icon-btn img { width: 20px; height: 20px; image-rendering: pixelated; }
 .icon-btn:active { transform: translateY(1px); }
 
@@ -113,46 +149,38 @@ html, body {
 .btn-row.wide { margin-top: 12px; }
 .btn-row.wide .big-btn { flex: 1; }
 
-/* ---------------------------------------------------------------------- hud */
-
-.hud {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding: calc(env(safe-area-inset-top, 0px) + 8px) calc(env(safe-area-inset-right, 0px) + 10px) 0
-    calc(env(safe-area-inset-left, 0px) + 10px);
-}
-
-.hud-left { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.hud-right { pointer-events: auto; }
-.hud-row { display: flex; gap: 6px; flex-wrap: wrap; }
+/* ------------------------------------------------------------------ bar bits */
 
 .stat-pill {
   display: flex;
   align-items: center;
   gap: 5px;
-  background: rgba(10, 15, 32, 0.82);
+  background: rgba(19, 28, 58, 0.9);
   border: 2px solid var(--panel-border);
   border-radius: 9px;
   padding: 3px 9px;
   font-weight: 800;
   font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .stat-pill img { width: 18px; height: 18px; image-rendering: pixelated; }
 .stat-pill.urgent { border-color: var(--red); color: #ffdada; }
 
-/* Collected loot, listed here instead of orbiting the magnet. Kept to a single
-   short row so it never becomes a wall across the top of the arena. */
+/* Collected loot: the bar is outside the arena, so the full haul can sit here
+   and scroll sideways instead of piling up over the playfield. */
 .haul-strip {
   display: flex;
   gap: 4px;
   flex-wrap: nowrap;
   align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0;
 }
+
+.haul-strip::-webkit-scrollbar { display: none; }
 
 .haul-chip {
   position: relative;
@@ -164,14 +192,6 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-}
-
-.haul-more {
-  font-size: 11px;
-  font-weight: 900;
-  color: var(--text-dim);
-  padding: 0 3px;
   flex-shrink: 0;
 }
 
