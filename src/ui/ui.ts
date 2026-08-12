@@ -220,14 +220,11 @@ export class Ui {
     this.loadLabel = load.label;
     this.haulStrip = el('div', 'haul-strip');
 
-    const bottomLeft = el('div', 'bar-group grow');
-    bottomLeft.append(load.pill, this.haulStrip);
-
     const finishBtn = button('Vardiyayı Bitir', 'icon-btn finish', () => this.onFinishShift?.(), UI_SPRITES.play);
-    const bottomRight = el('div', 'bar-group');
-    bottomRight.append(finishBtn);
+    const main = el('div', 'bar-main');
+    main.append(load.pill, finishBtn);
 
-    this.bottomBar.append(bottomLeft, bottomRight);
+    this.bottomBar.append(main, this.haulStrip);
   }
 
   /** The bottom bar sits outside the arena, so the whole haul can be listed;
@@ -343,11 +340,13 @@ export class Ui {
     const summaryToggle = el('summary', undefined, 'Parça dökümü');
     tableWrap.append(summaryToggle, this.resultTable);
 
-    const actions = el('div', 'btn-row wide');
+    // The primary action gets its own full-width row; the two side trips share
+    // the row below it, so nothing wraps mid-label on a narrow screen.
+    const actions = el('div', 'result-actions');
     actions.append(
+      button('Yeni Vardiya', 'big-btn primary-action', () => this.onStartShift?.(), UI_SPRITES.play),
       button('Geliştirmeler', 'big-btn alt', () => this.openHub('upgrades'), UI_SPRITES.upgrade),
       button('Koleksiyon', 'big-btn info', () => this.openHub('collection'), UI_SPRITES.collection),
-      button('Yeni Vardiya', 'big-btn', () => this.onStartShift?.(), UI_SPRITES.play),
     );
 
     sheet.append(head, top, tableWrap, actions);

@@ -21,20 +21,31 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  background: var(--bg);
+  background: #05070f;
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow: hidden;
   overscroll-behavior: none;
 }
 
-/* Bars are laid out above and below the arena instead of floating over it, so
-   the canvas gets whatever is left and the HUD can never cover the playfield. */
+body {
+  display: flex;
+  justify-content: center;
+}
+
+/* The game is a portrait column: full width on a phone, letterboxed and centred
+   on a desktop window so it is still playable and testable there. Bars sit above
+   and below the arena rather than floating over it, so the canvas gets whatever
+   is left and the HUD can never cover the playfield. */
 #app {
-  position: fixed;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  max-width: min(100vw, calc(100dvh * 0.6));
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
 }
 
 #canvas-wrap {
@@ -62,9 +73,24 @@ html, body {
   padding-top: calc(env(safe-area-inset-top, 0px) + 5px);
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  min-height: 52px;
+  min-height: 50px;
 }
-#bottombar { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5px); }
+
+/* Portrait is narrow, so the haul gets its own line under the status row
+   instead of fighting the finish button for width. */
+#bottombar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5px);
+}
+
+.bar-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 
 /* Keeps the bar's height (and so the arena size) while a panel is up. */
 .bar-idle > * { visibility: hidden; }
@@ -119,8 +145,9 @@ html, body {
 
 .pips i.spent { background: #333c5e; box-shadow: none; }
 
+/* Scoped to the app column so panels letterbox with the game on desktop. */
 #ui-root {
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 10;
@@ -295,7 +322,7 @@ html, body {
   text-align: center;
 }
 
-.logo { font-size: clamp(24px, 5vw, 40px); font-weight: 900; letter-spacing: 1px; line-height: 1.1; }
+.logo { font-size: clamp(22px, 6vmin, 34px); font-weight: 900; letter-spacing: 1px; line-height: 1.15; }
 .logo span { color: var(--accent); }
 
 .tagline { color: var(--text-dim); font-size: 13px; max-width: 440px; line-height: 1.45; }
@@ -318,12 +345,12 @@ html, body {
 .stat-card strong { font-size: 17px; font-weight: 900; }
 .stat-card span { font-size: 10.5px; color: var(--text-dim); font-weight: 700; }
 
-.big-btn.hero { padding: 16px 44px; font-size: 19px; letter-spacing: 0.5px; }
+.big-btn.hero { padding: 15px 36px; font-size: 18px; letter-spacing: 0.5px; }
 .big-btn.info { background: #2563a8; box-shadow: 0 4px 0 #17406e; }
 
 .intro-kicker { font-size: 13px; font-weight: 800; letter-spacing: 4px; color: var(--text-dim); }
 .intro-title {
-  font-size: clamp(38px, 11vw, 84px);
+  font-size: clamp(34px, 13vmin, 72px);
   font-weight: 900;
   letter-spacing: 2px;
   animation: intro-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3);
@@ -361,7 +388,23 @@ html, body {
 .sheet.report { display: flex; flex-direction: column; overflow: hidden; }
 .sheet.report .result-top { flex-shrink: 0; }
 .sheet.report .result-details { flex: 1; min-height: 0; overflow-y: auto; }
-.sheet.report .btn-row.wide { flex-shrink: 0; }
+.sheet.report .result-actions { flex-shrink: 0; }
+
+.result-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.result-actions .primary-action { grid-column: 1 / -1; }
+.result-actions .big-btn { padding: 11px 12px; font-size: 15px; }
+
+/* Wide enough for one row: all three sit side by side. */
+@media (min-width: 560px) {
+  .result-actions { grid-template-columns: repeat(3, 1fr); }
+  .result-actions .primary-action { grid-column: auto; order: 3; }
+}
 
 .sheet.narrow { width: min(420px, 100%); }
 
@@ -967,7 +1010,7 @@ html, body {
 
 #rotate-hint { display: none; }
 
-@media (orientation: portrait) and (max-width: 900px) {
+@media (orientation: landscape) and (max-height: 500px) {
   #rotate-hint {
     position: fixed;
     inset: 0;
@@ -983,8 +1026,8 @@ html, body {
   }
 
   #rotate-hint .phone {
-    width: 56px;
-    height: 92px;
+    width: 92px;
+    height: 56px;
     border: 4px solid var(--text);
     border-radius: 10px;
     animation: tilt 1.8s ease-in-out infinite;
@@ -996,5 +1039,5 @@ html, body {
 
 @keyframes tilt {
   0%, 40% { transform: rotate(0deg); }
-  60%, 100% { transform: rotate(-90deg); }
+  60%, 100% { transform: rotate(90deg); }
 }

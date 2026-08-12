@@ -8,20 +8,20 @@
     <link rel="icon" href="./assets/magnet/magnet.png" />
   </head>
   <body>
-    <!-- The bars sit outside the arena rather than floating over it, so nothing
-         in the HUD can ever cover the playfield. -->
+    <!-- Portrait column: full width on a phone, letterboxed on a desktop window.
+         The bars sit outside the arena so the HUD can never cover the playfield. -->
     <div id="app">
       <div id="topbar" class="gamebar"></div>
       <div id="canvas-wrap">
         <canvas id="game-canvas"></canvas>
       </div>
       <div id="bottombar" class="gamebar"></div>
+      <div id="ui-root"></div>
     </div>
-    <div id="ui-root"></div>
     <div id="rotate-hint">
       <div class="phone"></div>
-      <p>Telefonu yatay çevir</p>
-      <small>Magnet Incremental yatay ekran için tasarlandı.</small>
+      <p>Telefonu dik tut</p>
+      <small>Magnet Incremental dikey ekran için tasarlandı.</small>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

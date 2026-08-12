@@ -135,7 +135,9 @@ Bu bölüm GDD'nin üzerine, mevcut kod tabanının GDD'yi nasıl karşıladığ
 
 ### GDD'den bilinçli sapmalar
 
-- **Ekran yönü: landscape (GDD §2 portrait diyor).** Oyun yatay ekran için tasarlandı; mıknatısın atış menzili sahayı bir sekmeyle geçebilecek kadar uzun ve geniş board hem cluster okumayı hem de sekmeli atış planlamayı çok daha iyi gösteriyor. Portrait telefonlarda "telefonu yatay çevir" ekranı gösteriliyor.
+- **Ekran yönü: portrait (GDD §2 ile aynı).** Bir süre landscape denendi ve geri alındı: oyun menü-ağırlıklı (vardiya 10-30 saniye, ardından rapor → geliştirme → koleksiyon) ve bu ekranların hepsi doğası gereği dikey listeler. Yatayda içeriğe ~300px yükseklik kalıyor ve her şey sıkışıyordu; dikeyde ~800px var ve sorun doğmuyor. Ayrıca tek elle oynanıyor ve telefonu çevirme sürtünmesi ortadan kalkıyor. Arena dikeyde de sorunsuz çünkü fizik en-boy oranından bağımsız: yarıçap ve menziller kısa kenara, hız ve sürtünme köşegene göre ölçekleniyor.
+
+  Oyun sabit ~0.6 en-boy oranlı bir **dikey kolon**: telefonda tam genişlik, masaüstünde ortalanmış ve letterbox'lanmış — böylece tarayıcıda da oynanabilir ve test edilebilir kalıyor. Yatay tutulan telefonlarda "telefonu dik tut" ekranı çıkıyor.
 - **Mıknatıs başlangıç konumu her vardiyada rastgele.** Board bu noktanın etrafında bir keepout bırakacak şekilde üretilir; her turun açılış kararı farklı oluyor.
 - **Moving Attraction artık temel mekanik, milestone değil (GDD §12'de unlock'tu).** Çekim sürekli ve her karede çalışıyor: mıknatıs havadayken de menzilindeki objeleri sürüklüyor. Pulse modeli (mıknatısın durmasını bekleme) tamamen kaldırıldı. Milestone listesinden çıkarıldı.
 - **Tur birimi "vardiya" olarak adlandırıldı.** Hurdalık/atölye temasına "run"dan daha iyi oturuyor; ekran akışı da bunun üzerine kurulu.

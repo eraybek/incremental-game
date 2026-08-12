@@ -30,10 +30,10 @@ export function generateBoard(
   const height = rect.maxY - rect.minY;
   const radius = scaleRef * 0.058;
 
-  // Landscape arenas are much wider than tall, so scale the count by area rather
-  // than by a single axis — otherwise wide boards feel empty.
+  // Scale the count by area rather than by a single axis, so the board reads the
+  // same whether the arena is a tall portrait column or a wide desktop window.
   const density = (width * height) / (scaleRef * scaleRef);
-  const count = Math.round(Math.min(22, Math.max(11, density * 5.5)));
+  const count = Math.round(Math.min(22, Math.max(12, density * 7.5)));
 
   const objects: BoardObject[] = [];
   const margin = radius * 1.6;
