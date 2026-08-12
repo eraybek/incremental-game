@@ -176,9 +176,16 @@ export function autoCastDelayAt(level: number): number {
   return Math.max(0.35, 4.5 * Math.pow(0.86, level - 1));
 }
 
-/** Kancanin inis/cekme hizi (m/sn). Aktif kol: manuel donguyu kisaltir. */
-export function dropSpeedAt(level: number): number {
-  return 60 + level * 24;
+/**
+ * Kancanin ekrani bastan asagi kat etme suresi (saniye).
+ *
+ * Hiz metre/saniye olarak degil sure olarak tanimli: ekran her zaman
+ * 0..maxDepth araligini gosterdigi icin, sabit m/sn kullanilsaydi misina
+ * uzadikca kanca ekranda gitgide hizlanir ve gec oyunda gozle takip
+ * edilemez olurdu. Sure sabit olunca Gold Miner temposu her derinlikte ayni.
+ */
+export function dropSecondsAt(level: number): number {
+  return Math.max(0.45, 1.5 * Math.pow(0.93, level));
 }
 
 /** Yatay yakalama toleransi (normalize -1..1 olcegi). Aktif kol. */
@@ -211,9 +218,9 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'reel', name: 'Kanca Hızı', sprite: { sheet: 'gear', i: 5 },
-    desc: 'Kanca {v} hızında inip çıkıyor.',
+    desc: 'Kanca {v} içinde dibe iniyor.',
     baseCost: 60, growth: 1.3, maxLevel: 60, track: 'active',
-    valueAt: (l) => `${dropSpeedAt(l)} m/sn`,
+    valueAt: (l) => `${dropSecondsAt(l).toFixed(2)} sn`,
     revealAt: 0,
   },
   {

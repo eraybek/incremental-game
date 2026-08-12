@@ -9,7 +9,7 @@ import {
   comboCapAt,
   costOf,
   densityAt,
-  dropSpeedAt,
+  dropSecondsAt,
   grabRadiusAt,
   junkChanceAt,
   lineDepthAt,
@@ -93,8 +93,13 @@ export class Game {
   }
 
   /** Kancanin inis/cekme hizi (m/sn). */
+  /**
+   * Kancanin dikey hizi (m/sn). Ekran her zaman 0..maxDepth'i gosterdigi
+   * icin hiz derinlige oranlanir: kanca ekrani hep ayni surede kat eder,
+   * boylece gorunur tempo gec oyunda da bozulmaz.
+   */
   get dropSpeed(): number {
-    return dropSpeedAt(this.upgrades.reel);
+    return (this.maxDepth * 1.18) / dropSecondsAt(this.upgrades.reel);
   }
 
   /** Yatay yakalama toleransi (normalize olcek). */
@@ -418,9 +423,10 @@ export class Game {
         break;
       }
       case 'reeling': {
-        // Dolu kanca biraz daha agir sarilir.
-        const speed = this.dropSpeed * (rod.hooked ? 0.85 : 1.5);
-        rod.depth -= speed * dt;
+        // Gold Miner'in nugget mantigi: agir olan yavas gelir. Buyuk bir
+        // baligi cekmek oltayi uzun sure mesgul eder, o sirada baska balik
+        // kacar - "hangisine gideyim" karari boyle agirlik kazaniyor.
+        rod.depth -= this.dropSpeed * this.reelFactor(rod) * dt;
         if (rod.depth <= 0) {
           rod.depth = 0;
           this.land(rod);
@@ -456,6 +462,19 @@ export class Game {
     // Yakalanani havuzdan cikar, yerine yeni bir yuzen getir.
     this.respawn(s);
     return { hooked, aligned: bestDx <= xTol * 0.4 };
+  }
+
+  /** Cekis hizi carpani: bos kanca hizli, agir av yavas. */
+  private reelFactor(rod: Rod): number {
+    const h = rod.hooked;
+    if (!h) return 1.5;
+    // Buyukluk hem turun gorsel olceginden hem bireyin agirlik oranindan.
+    let ratio = 1;
+    if (h.species.kind === 'fish' && h.species.baseWeight > 0) {
+      ratio = h.kg / h.species.baseWeight;
+    }
+    const heft = h.species.size * Math.pow(Math.max(0.2, ratio), 0.35);
+    return clamp(1.05 / (0.55 + heft), 0.18, 0.95);
   }
 
   private land(rod: Rod): void {

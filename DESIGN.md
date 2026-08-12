@@ -56,6 +56,14 @@ geldiği anda bırakırsın.
 > açıyı zamanlamak. Balıkçı temasına dikey-hat + geçen balık daha doğal oturdu
 > ve mobil dokunmaya daha yakın; ama sallanan kanca istenirse buraya döner.
 
+### Tempo — kanca neden yavaş
+
+Kanca **süreyle** tanımlı, hızla değil: ekranı baştan aşağı sabit bir sürede
+(başlangıçta ~1.5 sn) kat eder. Sabit m/sn kullanılsaydı misina uzadıkça kanca
+ekranda gitgide hızlanır, geç oyunda gözle takip edilemez olurdu ve zamanlama
+diye bir şey kalmazdı. Süre sabit olunca Gold Miner temposu her derinlikte aynı
+kalıyor; "Kanca Hızı" yükseltmesi bu süreyi kısaltıyor.
+
 ### Kancalama ve çekme
 
 Kanca bir şeye takıldığında yukarı sarılır. **Ağır olan yavaş gelir** (Gold

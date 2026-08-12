@@ -11,6 +11,8 @@ import { loadSheets, sheetTexture, type SpriteRef } from './atlas';
  */
 const SURFACE_Y = 0.5;
 const BOTTOM_Y = -0.5;
+/** Teknelerin durdugu yukseklik: yuzeyin hemen alti, kadrajin icinde. */
+const BOAT_Y = SURFACE_Y - 0.045;
 /** Normalize x (-1..1) -> dunya x carpani. Balik ve kanca ayni olcegi paylasir. */
 const X_MAP = 0.9;
 
@@ -390,6 +392,17 @@ export class SceneView {
     }
   }
 
+  /** Misinayi tekneden verilen kanca noktasina cizer. */
+  private drawLine(line: THREE.Line, bx: number, hx: number, hookY: number): void {
+    const geo = line.geometry as THREE.BufferGeometry;
+    const p = geo.getAttribute('position') as THREE.BufferAttribute;
+    p.setXYZ(0, bx, BOAT_Y, 0);
+    p.setXYZ(1, hx, hookY, 0);
+    p.needsUpdate = true;
+    geo.computeBoundingSphere();
+    line.visible = true;
+  }
+
   private updateRods(game: Game): void {
     this.focusRing.visible = false;
     for (let i = 0; i < this.lines.length; i++) {
@@ -407,9 +420,10 @@ export class SceneView {
       const bx = this.normToWorldX(rod.homeX);
       const hx = this.normToWorldX(rod.hookX);
 
-      // Tekne her zaman yuzeyde gorunur.
+      // Tekne yuzeyin hemen altinda durur. Yuzey ekranin en ust kenari
+      // oldugu icin tam yuzeye konursa kadrajin disinda kaliyor.
       boat.visible = true;
-      boat.position.set(bx, SURFACE_Y - 0.03 + Math.sin(this.time * 1.6 + i) * 0.006, 0);
+      boat.position.set(bx, BOAT_Y + Math.sin(this.time * 1.6 + i) * 0.006, 0);
 
       // Odak halkasi: en son manuel odaklanan oltanin teknesinde.
       if (i === game.focusIndex) {
@@ -417,24 +431,24 @@ export class SceneView {
         this.focusRing.position.copy(boat.position);
       }
 
+      const wobble = Math.sin(this.time * 2.4 + i) * 0.003;
+
       if (rod.phase === 'idle') {
-        line.visible = hook.visible = katch.visible = ring.visible = false;
+        // Kanca bosta da teknenin altinda asili durur; oyuncu neyi
+        // biraktigini ve nereden dustugunu gorsun.
+        katch.visible = ring.visible = false;
+        hook.visible = true;
+        hook.position.set(bx, BOAT_Y - 0.06 + wobble, 0);
+        this.drawLine(line, bx, bx, BOAT_Y - 0.06);
         continue;
       }
 
       const hookY = this.depthToY(rod.depth);
-      const wobble = Math.sin(this.time * 2.4 + i) * 0.003;
       hook.visible = true;
       hook.position.set(hx, hookY + wobble, 0);
 
-      // Misina: tekneden (yuzey) kancaya (hook sutunu) uzanir.
-      const geo = line.geometry as THREE.BufferGeometry;
-      const p = geo.getAttribute('position') as THREE.BufferAttribute;
-      p.setXYZ(0, bx, SURFACE_Y - 0.02, 0);
-      p.setXYZ(1, hx, hookY, 0);
-      p.needsUpdate = true;
-      geo.computeBoundingSphere();
-      line.visible = true;
+      // Misina: tekneden kancaya uzanir.
+      this.drawLine(line, bx, hx, hookY);
 
       // Kapma yariçapi halkasi yalnizca inerken gorunur.
       if (rod.phase === 'dropping') {
