@@ -146,6 +146,11 @@ Her karede, menzil içindeki her obje `PULL_SPEED × (power / weight) × falloff
 
 - Hafif obje neredeyse anında yapışır; ağır obje mıknatıs yanından geçerken sadece birkaç piksel sürüklenir ve **yeni konumunda kalır** — GDD §5'teki kademeli toplama, mıknatısın durmasını beklemeden.
 - Mıknatıs durduğunda çekim devam eder, yani ağır objeler zamanla süzülerek gelir. Bu da süre ile atış hakkı arasında gerçek bir takas yaratır: bekleyip ağırı almak mı, atış harcayıp yeni cluster'a gitmek mi.
+- Yakalama kontrolü, objenin **o karede varacağı** mesafeye bakar. Adımı `mesafe - yakalama` ile sınırlamak, objelerin yakalama yarıçapına sonsuza dek yaklaşıp asla tetiklememesine yol açıyordu; bu yüzden objeler mıknatısın dibine gelip orada takılı kalıyordu.
+
+### Vardiya bitiş koşulları
+
+Üçünden hangisi önce olursa: süre dolar, atış hakkı biter (mıknatıs durup çekim de bitince), **veya sahnede obje kalmaz**. Sonuncusunda son toplamanın görülmesi için kısa bir bekleme var.
 
 ### Ekran akışı
 
@@ -157,9 +162,10 @@ Vardiya sonu raporu ürün bazlı kırılım gösterir: hangi üründen kaç ade
 
 - **Mıknatıs tek sprite, sabit boyut.** Durum bazlı sprite değişimi (idle/active/moving) kaldırıldı; farklı kırpma oranları yüzünden mıknatıs nişan alırken büyüyor gibi görünüyordu.
 - **Nişan alırken sonuç gösterilmiyor.** Yörünge tahmini kaldırıldı; sadece lastik bandı, yön oku ve güç yayı var. Sekmeyi okumak oyuncunun işi.
-- **Çekim menzili her zaman görünür** (sürekli çekim yaptığı için), çekilen objelere kesikli bağ çizilir.
+- **Çekim menzili halkası çizilmiyor.** Alan büyüklüğünde bir daire arenayı kalabalıklaştırıyordu; niyeti nişan oku zaten taşıyor. Mıknatısın bulunabilir kalması için sadece gövdesine yakın küçük bir parıltı var. Çekilen objelere kesikli bağ çizilir — bunlar dairenin aksine neyin çekildiğini bilgi olarak gösteriyor.
 - **Zemin kasıtlı olarak düz:** lacivert taban + seyrek yatay çizgiler. Gölge, doku, plaka ve leke yok — sahnedeki en dikkat çekici şeyler loot ve mıknatıs olmalı.
-- **Toplanan loot mıknatısın üzerinde değil HUD'da.** Mıknatısın çevresine dizildiğinde sahneyi kalabalıklaştırıyor ve çekim alanının parçasıymış gibi okunuyordu.
+- **Toplanan loot mıknatısın üzerinde değil HUD'da**, tek sıra ve kısa tutulur: en son toplanan birkaç tür gösterilir, gerisi `+N` sayacına düşer. Tam döküm zaten vardiya raporunda. Mıknatısın çevresine dizildiğinde sahneyi kalabalıklaştırıyor ve çekim alanının parçasıymış gibi okunuyordu.
+- **Vardiya kartı sahnenin üzerinde açılır.** Arena hafif bir perdenin ardından görünür ve içinde yalnızca mıknatıs vardır; hurda ancak kart kalktıktan sonra düşmeye başlar, böylece oyuncu yazıyı okurken board'un dolmasını kaçırmaz.
 
 ### Teknik
 

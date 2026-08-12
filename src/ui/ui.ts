@@ -152,6 +152,9 @@ export class Ui {
     this.root.appendChild(this.hud);
   }
 
+  /** Deliberately small: a long shift can collect a dozen item types and a full
+   *  list of them buried the arena. Show the most recent few and roll the rest
+   *  into a counter — the itemised breakdown belongs on the shift report. */
   private renderHaul(): void {
     const counts = new Map<string, { item: ItemDef; count: number }>();
     for (const carried of this.run.magnet.carried) {
@@ -163,7 +166,15 @@ export class Ui {
     }
 
     this.haulStrip.innerHTML = '';
-    for (const { item, count } of counts.values()) {
+    const all = Array.from(counts.values());
+    const shown = all.slice(-HAUL_CHIP_LIMIT);
+    const hidden = all.length - shown.length;
+
+    if (hidden > 0) {
+      this.haulStrip.appendChild(el('div', 'haul-more', `+${hidden}`));
+    }
+
+    for (const { item, count } of shown) {
       const chip = el('div', `haul-chip rarity-${item.rarity}`);
       chip.title = item.name;
       chip.appendChild(img(item.sprite));
@@ -214,8 +225,10 @@ export class Ui {
 
   // ------------------------------------------------------------------ intro
 
+  /** Sits over the arena rather than blacking it out, so the player sees the
+   *  empty bay and where the magnet landed before the scrap drops in. */
   private buildIntro(): void {
-    const panel = this.panel('intro', 'screen-center screen-solid');
+    const panel = this.panel('intro', 'screen-center screen-scrim');
     this.introTitle = el('div', 'intro-title');
     panel.append(el('div', 'intro-kicker', 'HURDALIK'), this.introTitle);
   }
@@ -452,3 +465,6 @@ export class Ui {
 }
 
 const ITEM_INDEX = new Map(ITEMS.map((i) => [i.id, i]));
+
+/** How many distinct item chips the in-game strip shows before collapsing. */
+const HAUL_CHIP_LIMIT = 5;

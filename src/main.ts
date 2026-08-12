@@ -37,34 +37,38 @@ resize();
 
 // ------------------------------------------------------------ shift flow
 
-const INTRO_MS = 1300;
+const INTRO_MS = 1400;
 let introTimer: number | undefined;
 
-function beginShift(): void {
+/** Shows the shift card over an arena holding nothing but the magnet; the scrap
+ *  only drops in once the card is gone. */
+function openShiftIntro(): void {
   window.clearTimeout(introTimer);
+  run.prepareShift();
+  ui.resetHaul();
   ui.showIntro(run.currentShift);
-  introTimer = window.setTimeout(() => {
-    run.startShift();
-    ui.resetHaul();
-    ui.setScreen('playing');
-  }, INTRO_MS);
+  introTimer = window.setTimeout(enterArena, INTRO_MS);
 }
 
-ui.onStartShift = beginShift;
+function enterArena(): void {
+  window.clearTimeout(introTimer);
+  if (run.phase === 'playing') return;
+  run.beginShift();
+  ui.setScreen('playing');
+}
 
-ui.onBackToMenu = () => {
+function returnToMenu(): void {
   window.clearTimeout(introTimer);
   run.phase = 'idle';
   run.board = [];
   ui.setScreen('menu');
-};
+}
 
+ui.onStartShift = openShiftIntro;
+ui.onBackToMenu = returnToMenu;
 ui.onResetProgress = () => {
-  window.clearTimeout(introTimer);
   resetProgress(persistent);
-  run.phase = 'idle';
-  run.board = [];
-  ui.setScreen('menu');
+  returnToMenu();
 };
 
 run.onRunEnd = (payout) => ui.showResult(payout);
@@ -73,10 +77,7 @@ run.onRunEnd = (payout) => ui.showResult(payout);
 uiRoot.addEventListener('pointerdown', (e) => {
   if (ui.screen !== 'intro') return;
   e.preventDefault();
-  window.clearTimeout(introTimer);
-  run.startShift();
-  ui.resetHaul();
-  ui.setScreen('playing');
+  enterArena();
 });
 
 // ----------------------------------------------------------------- input
@@ -150,7 +151,7 @@ function loop(now: number): void {
   lastTime = now;
 
   if (ui.screen === 'playing') run.update(dt);
-  scene.draw(run, aim, dt);
+  scene.draw(run, aim);
   ui.tick();
 
   requestAnimationFrame(loop);

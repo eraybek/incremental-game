@@ -31,7 +31,6 @@ export class Scene {
   private canvas: HTMLCanvasElement;
   private width = 800;
   private height = 420;
-  private time = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -195,33 +194,22 @@ export class Scene {
     const ctx = this.ctx;
     const m = run.magnet;
 
-    // The attraction field is always on now, so it is always drawn.
-    const range = run.attractionRangePx();
-    const shimmer = 0.16 + 0.06 * Math.sin(this.time * 2.4);
-    const field = ctx.createRadialGradient(m.pos.x, m.pos.y, range * 0.25, m.pos.x, m.pos.y, range);
-    field.addColorStop(0, 'rgba(125, 211, 252, 0.09)');
-    field.addColorStop(1, 'rgba(125, 211, 252, 0)');
-    ctx.fillStyle = field;
+    // No range ring: the aim arrow carries the intent, and a circle the size of
+    // the field cluttered the arena. A tight glow keeps the magnet findable.
+    const glowR = m.radius * 1.5;
+    const glow = ctx.createRadialGradient(m.pos.x, m.pos.y, m.radius * 0.5, m.pos.x, m.pos.y, glowR);
+    glow.addColorStop(0, 'rgba(255, 92, 92, 0.22)');
+    glow.addColorStop(1, 'rgba(255, 92, 92, 0)');
+    ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(m.pos.x, m.pos.y, range, 0, Math.PI * 2);
+    ctx.arc(m.pos.x, m.pos.y, glowR, 0, Math.PI * 2);
     ctx.fill();
-
-    ctx.save();
-    ctx.globalAlpha = 0.25 + shimmer;
-    ctx.strokeStyle = '#7dd3fc';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([5, 7]);
-    ctx.beginPath();
-    ctx.arc(m.pos.x, m.pos.y, range, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
 
     // One sprite, one size, always — no state swaps, no scaling.
     drawSpriteFit(ctx, loadImage(SCENE_SPRITES.magnet), m.pos.x, m.pos.y, m.radius * 2.2);
   }
 
-  draw(run: RunManager, aim: AimState, dt: number): void {
-    this.time += dt;
+  draw(run: RunManager, aim: AimState): void {
     this.drawFloor(run);
     this.drawBoardObjects(run);
     this.drawAim(run, aim);

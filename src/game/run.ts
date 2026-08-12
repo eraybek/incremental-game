@@ -47,6 +47,8 @@ const MAX_LOAD_PENALTY = 0.72;
 const PULL_SPEED = 0.32;
 /** Pull is strongest at the magnet and weakest at the rim of the field. */
 const EDGE_FALLOFF = 0.65;
+/** Beat between the last piece being collected and the shift report. */
+const BOARD_CLEARED_GRACE = 0.7;
 
 /** Thickness of the decorative bay frame; physics walls sit on its inner edge. */
 export const FRAME_THICKNESS = 0.035;
@@ -64,8 +66,12 @@ export class RunManager {
   lastPayout: PayoutResult | null = null;
 
   onRunEnd?: (payout: PayoutResult) => void;
-  onBoardReady?: () => void;
-  onCollect?: (item: ItemDef) => void;
+
+  /** Set once the board has spawned, so an empty board only ends the shift
+   *  after there was actually something to clear. */
+  private boardHadObjects = false;
+  /** Grace period so the final pickup is visible before the report appears. */
+  private clearedTimer = 0;
 
   constructor(state: PersistentState) {
     this.state = state;
@@ -101,13 +107,13 @@ export class RunManager {
     this.canvasW = w;
     this.canvasH = h;
     this.applyMetrics();
-    if (this.phase !== 'playing') {
-      const rect = this.arenaRect();
-      this.magnet.reset({
-        x: (rect.minX + rect.maxX) / 2,
-        y: (rect.minY + rect.maxY) / 2,
-      });
-    }
+
+    // Keep the magnet where it is and just pull it back inside the new walls —
+    // recentring would teleport it mid-shift and during the shift intro.
+    const rect = this.arenaRect();
+    const r = this.magnet.radius;
+    this.magnet.pos.x = Math.min(Math.max(this.magnet.pos.x, rect.minX + r), rect.maxX - r);
+    this.magnet.pos.y = Math.min(Math.max(this.magnet.pos.y, rect.minY + r), rect.maxY - r);
   }
 
   private diagonal(): number {
@@ -133,22 +139,32 @@ export class RunManager {
     return Math.min(MAX_LOAD_PENALTY, raw);
   }
 
-  startShift(): void {
-    const rect = this.arenaRect();
-    this.magnet.reset(randomMagnetStart(rect, this.magnet.radius));
+  /** Places the magnet and clears the arena. Called before the shift intro so
+   *  the player sees an empty bay with only the magnet in it. */
+  prepareShift(): void {
+    this.magnet.reset(randomMagnetStart(this.arenaRect(), this.magnet.radius));
+    this.board = [];
+    this.boardHadObjects = false;
+    this.clearedTimer = 0;
+    this.timeRemaining = BASE_RUN_DURATION;
+    this.shotsRemaining = BASE_SHOTS;
+    this.totalShots = BASE_SHOTS;
+    this.lastPayout = null;
+    this.phase = 'idle';
+  }
+
+  /** Spawns the scrap and starts the clock — called once the intro card has
+   *  cleared, so loot never drops in behind the title. */
+  beginShift(): void {
     this.board = generateBoard(
-      rect,
+      this.arenaRect(),
       this.scaleRef,
       this.magnet.pos,
       this.magnet.radius,
       lootQualityLevel(this.state),
     );
-    this.timeRemaining = BASE_RUN_DURATION;
-    this.shotsRemaining = BASE_SHOTS;
-    this.totalShots = BASE_SHOTS;
-    this.lastPayout = null;
+    this.boardHadObjects = this.board.length > 0;
     this.phase = 'playing';
-    this.onBoardReady?.();
   }
 
   canShoot(): boolean {
@@ -208,18 +224,19 @@ export class RunManager {
       // of the magnet while it waits to be picked up.
       const capture = this.magnet.radius * 0.95 + obj.radius * 0.9;
 
-      if (dist <= capture) {
+      const falloff = 1 - (dist / range) * EDGE_FALLOFF;
+      const speed = Math.min(maxStepSpeed, this.scaleRef * PULL_SPEED * (power / obj.item.weight) * falloff);
+      const step = Math.min(dist, speed * dt);
+
+      // Test capture against where the object ends up this frame. Clamping the
+      // step to `dist - capture` instead made objects creep toward the capture
+      // radius and hover there forever without ever tripping the check.
+      if (dist - step <= capture) {
         obj.carried = true;
         collected = true;
         this.magnet.attach({ itemId: obj.item.id, weight: obj.item.weight });
-        this.onCollect?.(obj.item);
         continue;
       }
-
-      const falloff = 1 - (dist / range) * EDGE_FALLOFF;
-      const speed = Math.min(maxStepSpeed, this.scaleRef * PULL_SPEED * (power / obj.item.weight) * falloff);
-      const step = Math.min(dist - capture, speed * dt);
-      if (step <= 0) continue;
 
       obj.pos.x += (dx / dist) * step;
       obj.pos.y += (dy / dist) * step;
@@ -246,6 +263,13 @@ export class RunManager {
     if (this.timeRemaining <= 0) {
       this.timeRemaining = 0;
       this.endShift();
+      return;
+    }
+
+    // Board swept clean — nothing left to earn, so wrap up after a short beat.
+    if (this.boardHadObjects && this.board.length === 0) {
+      this.clearedTimer += dt;
+      if (this.clearedTimer >= BOARD_CLEARED_GRACE) this.endShift();
       return;
     }
 

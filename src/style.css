@@ -145,24 +145,34 @@ html, body {
 .stat-pill img { width: 18px; height: 18px; image-rendering: pixelated; }
 .stat-pill.urgent { border-color: var(--red); color: #ffdada; }
 
-/* Collected loot, listed here instead of orbiting the magnet. */
+/* Collected loot, listed here instead of orbiting the magnet. Kept to a single
+   short row so it never becomes a wall across the top of the arena. */
 .haul-strip {
   display: flex;
   gap: 4px;
-  flex-wrap: wrap;
-  max-width: min(58vw, 460px);
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .haul-chip {
   position: relative;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   border: 2px solid var(--panel-border);
   background: rgba(10, 15, 32, 0.82);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.haul-more {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--text-dim);
+  padding: 0 3px;
+  flex-shrink: 0;
 }
 
 .haul-chip img { width: 74%; height: 74%; object-fit: contain; image-rendering: pixelated; }
@@ -170,7 +180,7 @@ html, body {
 .haul-count {
   position: absolute;
   right: -4px;
-  bottom: -5px;
+  bottom: -6px;
   background: var(--accent);
   color: #221800;
   font-size: 9px;
@@ -194,6 +204,8 @@ html, body {
 }
 
 .screen-solid { background: var(--bg); }
+/* Light veil so the shift title reads while the arena stays visible behind it. */
+.screen-scrim { background: rgba(6, 10, 24, 0.45); }
 
 .screen-center {
   flex-direction: column;
