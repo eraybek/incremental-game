@@ -246,12 +246,6 @@
     "height": 134
   },
   {
-    "name": "hud/clock",
-    "index": 50,
-    "width": 95,
-    "height": 139
-  },
-  {
     "name": "collectibles/chain",
     "index": 51,
     "width": 99,

@@ -203,7 +203,7 @@ export class Ui {
 
     this.timePill = el('div', 'gauge timer');
     this.timeLabel = el('span', 'gauge-value');
-    this.timePill.append(img(UI_SPRITES.clock), this.timeLabel);
+    this.timePill.append(this.timeLabel);
 
     this.shotsPips = el('div', 'pips');
     const shotGauge = el('div', 'gauge');
@@ -285,9 +285,14 @@ export class Ui {
     panel.append(logo, tagline, this.menuStats, this.menuStart, row);
   }
 
-  private statCard(icon: string, value: string, label: string): HTMLElement {
+  /** `icon` is optional: the sheet has no clock, and a stand-in that reads as a
+   *  smudge at this size is worse than no icon at all — the number and its
+   *  label already say what the card is. */
+  private statCard(icon: string | null, value: string, label: string): HTMLElement {
     const card = el('div', 'stat-card');
-    card.append(img(icon), el('strong', undefined, value), el('span', undefined, label));
+    if (icon) card.appendChild(img(icon));
+    else card.classList.add('no-icon');
+    card.append(el('strong', undefined, value), el('span', undefined, label));
     return card;
   }
 
@@ -298,7 +303,7 @@ export class Ui {
     this.menuStats.innerHTML = '';
     this.menuStats.append(
       this.statCard(UI_SPRITES.coin, `${this.state.coins}`, 'para'),
-      this.statCard(UI_SPRITES.clock, `${this.state.shiftsDone}`, 'vardiya'),
+      this.statCard(null, `${this.state.shiftsDone}`, 'vardiya'),
       this.statCard(
         UI_SPRITES.collection,
         `${this.state.discovered.length}/${ITEMS.length}`,
@@ -357,13 +362,15 @@ export class Ui {
   }
 
   private summaryRow(
-    icon: string,
+    icon: string | null,
     label: string,
     value: string,
     tone: 'normal' | 'accent' | 'rare' = 'normal',
   ): HTMLElement {
     const row = el('div', `summary-row ${tone}`);
-    row.append(img(icon), el('span', 'summary-label', label), el('strong', 'summary-value', value));
+    if (icon) row.appendChild(img(icon));
+    else row.classList.add('no-icon');
+    row.append(el('span', 'summary-label', label), el('strong', 'summary-value', value));
     return row;
   }
 
@@ -403,7 +410,7 @@ export class Ui {
         payout.rareBonus > 0 ? `+${payout.rareBonus}` : '—',
         payout.rareBonus > 0 ? 'rare' : 'normal',
       ),
-      this.summaryRow(UI_SPRITES.clock, 'Kalan süre', fmtTime(payout.timeLeft)),
+      this.summaryRow(null, 'Kalan süre', fmtTime(payout.timeLeft)),
       this.summaryRow(UI_SPRITES.charge, 'Kalan atış', `${payout.shotsLeft}`),
     );
 
@@ -506,7 +513,8 @@ export class Ui {
       const row = el('div', 'milestone-row');
       const info = el('div');
       info.append(el('div', 'milestone-name', m.name), el('div', 'milestone-desc', m.description));
-      row.append(img(m.icon), info);
+      if (m.icon) row.appendChild(img(m.icon));
+      row.appendChild(info);
       milestoneList.appendChild(row);
     }
 
@@ -535,7 +543,8 @@ export class Ui {
 
       const head = el('div', 'upgrade-head');
       const iconWrap = el('div', 'upgrade-icon');
-      iconWrap.appendChild(img(def.icon));
+      if (def.icon) iconWrap.appendChild(img(def.icon));
+      else iconWrap.classList.add('empty');
       const titles = el('div', 'upgrade-titles');
       titles.append(
         el('div', 'upgrade-name', def.name),

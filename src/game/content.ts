@@ -6,7 +6,6 @@ const A = asset('assets');
 /** Chrome shared by the HUD and the modals. */
 export const UI_SPRITES = {
   coin: `${A}/hud/coin.png`,
-  clock: `${A}/hud/clock.png`,
   magnet: `${A}/hud/magnet.png`,
   range: `${A}/hud/range.png`,
   charge: `${A}/hud/charge.png`,
@@ -184,7 +183,7 @@ export const UPGRADES: UpgradeDef[] = [
     unit: 'saniye',
     name: 'Vardiya Süresi',
     description: 'Her seviye vardiyaya +2 saniye ekler.',
-    icon: UI_SPRITES.clock,
+    icon: null,
     baseCost: 24,
     costGrowth: 1.33,
     maxLevel: 12,
@@ -231,12 +230,12 @@ export const UPGRADE_MAP: Record<UpgradeId, UpgradeDef> = Object.fromEntries(
 export interface Milestone {
   name: string;
   description: string;
-  icon: string;
+  icon: string | null;
 }
 
 export const MILESTONES: Milestone[] = [
   { name: 'Live Drops', description: 'Vardiya sırasında yukarıdan yeni objeler düşer.', icon: `${A}/collectibles/chest_wood.png` },
-  { name: 'Time Slow', description: 'Nişan alırken zaman yavaşlar.', icon: UI_SPRITES.clock },
+  { name: 'Time Slow', description: 'Nişan alırken zaman yavaşlar.', icon: null },
   { name: 'Automation', description: 'Küçük objeleri otomatik toplar.', icon: UI_SPRITES.settings },
 ];
 

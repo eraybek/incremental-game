@@ -23,8 +23,8 @@ initAudio(!persistent.muted, persistent.sfxVolume);
 
 void preload([
   ...ITEMS.map((i) => i.sprite),
-  ...UPGRADES.map((u) => u.icon),
-  ...MILESTONES.map((m) => m.icon),
+  ...UPGRADES.map((u) => u.icon).filter((i): i is string => i !== null),
+  ...MILESTONES.map((m) => m.icon).filter((i): i is string => i !== null),
   ...Object.values(UI_SPRITES),
   ...Object.values(SCENE_SPRITES),
   ...Object.values(RARITY_GEM),

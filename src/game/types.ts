@@ -28,7 +28,9 @@ export interface UpgradeDef {
   id: UpgradeId;
   name: string;
   description: string;
-  icon: string;
+  /** null where the sheet has no sprite that reads at icon size — the card
+   *  drops the slot rather than showing a smudge. */
+  icon: string | null;
   /** Bare effect value at a level, so a card can show `current → next unit`
    *  without repeating the unit twice and overflowing a narrow card. */
   valueAt: (level: number) => string;

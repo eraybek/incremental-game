@@ -42,7 +42,6 @@ const NAMES = {
   // HUD. The sheet's ready-made pills have their numbers painted on, so the
   // icons are taken from standalone art and the values stay live text.
   13: 'hud/coin',
-  50: 'hud/clock',
   41: 'hud/charge',
   144: 'hud/range',
   138: 'hud/magnet',
