@@ -5,7 +5,7 @@ import { Ui } from './ui/ui';
 import { loadState, resetProgress } from './game/state';
 import { ITEMS, UPGRADES, MILESTONES, UI_SPRITES, SCENE_SPRITES } from './game/content';
 import { preload } from './render/assets';
-import { RARITY_COLOR } from './game/content';
+import { RARITY_COLOR, RARITY_GEM } from './game/content';
 import { initAudio, playCollect, playSfx, resetCombo } from './audio/sfx';
 
 const wrap = document.getElementById('canvas-wrap') as HTMLElement;
@@ -27,6 +27,7 @@ void preload([
   ...MILESTONES.map((m) => m.icon),
   ...Object.values(UI_SPRITES),
   ...Object.values(SCENE_SPRITES),
+  ...Object.values(RARITY_GEM),
 ]);
 
 function resize(): void {
@@ -91,6 +92,7 @@ run.onLaunch = () => {
 run.onBounce = (x, y, vx, vy, speed01) => {
   const len = Math.hypot(vx, vy) || 1;
   scene.fx.spray(x, y, vx / len, vy / len, '#ffd166', 6 + Math.round(speed01 * 8), 190 * (0.4 + speed01));
+  scene.fx.flash(SCENE_SPRITES.dust, x, y, run.magnet.radius * (1.4 + speed01 * 1.2));
   scene.fx.shake(2 + speed01 * 7);
   scene.punch(0.5 * speed01);
   playSfx('bounce', 0.85 + speed01 * 0.5);
@@ -103,7 +105,11 @@ ui.onParticlesChanged = (on) => {
 run.onCollect = (item, x, y, value) => {
   const color = RARITY_COLOR[item.rarity];
   const rare = item.rarity !== 'common';
-  if (persistent.haptics) navigator.vibrate?.(rare ? 28 : 10);
+  // Epic and legendary get their own tier of feedback — a starburst, a longer
+  // shake and a stronger buzz — so the two rarest pulls land differently from
+  // an ordinary "not common".
+  const top = item.rarity === 'epic' || item.rarity === 'legendary';
+  if (persistent.haptics) navigator.vibrate?.(top ? 45 : rare ? 28 : 10);
   if (!persistent.particles) {
     playCollect(rare);
     ui.pulseHaul();
@@ -112,8 +118,9 @@ run.onCollect = (item, x, y, value) => {
   scene.fx.absorb(item.sprite, x, y, run.magnet.radius * 1.9);
   scene.fx.ring(x, y, run.magnet.radius * 1.9, color, rare ? 4 : 2.5);
   scene.fx.burst(x, y, color, rare ? 14 : 7, rare ? 210 : 140);
+  if (top) scene.fx.flash(SCENE_SPRITES.spark, x, y, run.magnet.radius * 3.4, 0.45);
   scene.fx.floatText(x, y - run.magnet.radius * 0.6, `+${value}`, rare ? color : '#ffd166');
-  if (rare) scene.fx.shake(3);
+  if (rare) scene.fx.shake(top ? 6 : 3);
   playCollect(rare);
   ui.pulseHaul();
 };

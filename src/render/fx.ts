@@ -31,6 +31,19 @@ interface Absorb {
   size: number;
 }
 
+/** A one-off sprite flash — the sheet's starburst or dust puff — that scales up
+ *  and fades on the spot. Cheaper to read than a ring of particles, and it puts
+ *  the sheet's own art on the impact instead of a drawn circle. */
+interface Flash {
+  sprite: string;
+  x: number;
+  y: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  spin: number;
+}
+
 interface FloatText {
   x: number;
   y: number;
@@ -52,6 +65,7 @@ export class Fx {
   private rings: Ring[] = [];
   private texts: FloatText[] = [];
   private absorbs: Absorb[] = [];
+  private flashes: Flash[] = [];
   private shakeAmount = 0;
   private shakeX = 0;
   private shakeY = 0;
@@ -61,7 +75,22 @@ export class Fx {
     this.rings.length = 0;
     this.texts.length = 0;
     this.absorbs.length = 0;
+    this.flashes.length = 0;
     this.shakeAmount = 0;
+  }
+
+  /** Pops a sprite flash at a point. Each one gets a random spin so repeated
+   *  hits in the same spot never look like the same frame twice. */
+  flash(sprite: string, x: number, y: number, size: number, duration = 0.28): void {
+    this.flashes.push({
+      sprite,
+      x,
+      y,
+      life: duration,
+      maxLife: duration,
+      size,
+      spin: Math.random() * Math.PI * 2,
+    });
   }
 
   /** Sends a collected sprite flying into the magnet instead of letting it
@@ -163,6 +192,11 @@ export class Fx {
       if (this.rings[i].life <= 0) this.rings.splice(i, 1);
     }
 
+    for (let i = this.flashes.length - 1; i >= 0; i--) {
+      this.flashes[i].life -= dt;
+      if (this.flashes[i].life <= 0) this.flashes.splice(i, 1);
+    }
+
     for (let i = this.texts.length - 1; i >= 0; i--) {
       const t = this.texts[i];
       t.life -= dt;
@@ -190,6 +224,25 @@ export class Fx {
       ctx.save();
       ctx.globalAlpha = 1 - t * 0.85;
       ctx.drawImage(img, a.x - w / 2, a.y - h / 2, w, h);
+      ctx.restore();
+    }
+
+    // Under the rings and particles, so a burst reads as one layered event.
+    for (const f of this.flashes) {
+      const img = loadImage(f.sprite);
+      if (!img.complete || img.naturalWidth === 0) continue;
+      const t = 1 - f.life / f.maxLife;
+      // Snaps out to full size, then holds while it fades.
+      const size = f.size * (0.45 + (1 - Math.pow(1 - t, 3)) * 0.75);
+      const scale = size / Math.max(img.naturalWidth, img.naturalHeight);
+      const w = img.naturalWidth * scale;
+      const h = img.naturalHeight * scale;
+      ctx.save();
+      ctx.globalAlpha = 1 - t;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.translate(f.x, f.y);
+      ctx.rotate(f.spin);
+      ctx.drawImage(img, -w / 2, -h / 2, w, h);
       ctx.restore();
     }
 

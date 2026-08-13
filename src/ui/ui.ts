@@ -4,6 +4,7 @@ import {
   ITEMS,
   MILESTONES,
   RARITY_COLOR,
+  RARITY_GEM,
   UI_SPRITES,
   UPGRADES,
   upgradeCost,
@@ -42,6 +43,8 @@ const RARITY_LABEL: Record<Rarity, string> = {
   common: 'Sıradan',
   uncommon: 'Az Bulunur',
   rare: 'Nadir',
+  epic: 'Epik',
+  legendary: 'Efsanevi',
 };
 
 const FILTERS: Array<{ id: RarityFilter; label: string; locked?: boolean }> = [
@@ -49,8 +52,8 @@ const FILTERS: Array<{ id: RarityFilter; label: string; locked?: boolean }> = [
   { id: 'common', label: 'Sıradan' },
   { id: 'uncommon', label: 'Az Bulunur' },
   { id: 'rare', label: 'Nadir' },
-  { id: 'epic', label: 'Epik', locked: true },
-  { id: 'legendary', label: 'Efsanevi', locked: true },
+  { id: 'epic', label: 'Epik' },
+  { id: 'legendary', label: 'Efsanevi' },
 ];
 
 function fmtTime(seconds: number): string {
@@ -664,11 +667,13 @@ export class Ui {
     icon.appendChild(img(item.sprite));
     if (!known) icon.classList.add('locked');
 
+    // The tier gets its gem badge next to the word, so the five rarities are
+    // told apart by colour and shape rather than by reading alone.
+    const rarityRow = el('div', `detail-rarity r-${item.rarity}`);
+    rarityRow.append(img(RARITY_GEM[item.rarity], 'rarity-gem'), el('span', undefined, RARITY_LABEL[item.rarity]));
+
     const info = el('div', 'detail-info');
-    info.append(
-      el('div', 'detail-name', known ? item.name : 'Henüz bulunmadı'),
-      el('div', `detail-rarity r-${item.rarity}`, RARITY_LABEL[item.rarity]),
-    );
+    info.append(el('div', 'detail-name', known ? item.name : 'Henüz bulunmadı'), rarityRow);
 
     const stats = el('div', 'detail-stats');
     stats.append(

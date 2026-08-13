@@ -70,8 +70,7 @@ export class Scene {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('no 2d context');
     this.ctx = ctx;
-    loadImage(SCENE_SPRITES.magnet);
-    loadImage(SCENE_SPRITES.hazardTile);
+    for (const src of Object.values(SCENE_SPRITES)) loadImage(src);
   }
 
   /** Kick the magnet's squash — 1 is a full stretch, decaying over ~0.25s. */
@@ -88,24 +87,29 @@ export class Scene {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  /** Plain navy floor with evenly spaced lines. Deliberately flat: the loot and
-   *  the magnet should be the only things competing for attention. */
+  /** Tiled stone floor under a heavy navy wash. The tile carries the texture,
+   *  the wash keeps it dark enough that loot and the magnet still own the
+   *  contrast — the floor should read as a surface, never compete. */
   private drawFloor(run: RunManager): void {
     const ctx = this.ctx;
     ctx.fillStyle = '#0d1430';
     ctx.fillRect(0, 0, this.width, this.height);
 
-    const rect = run.arenaRect();
-    const gap = Math.max(26, run.scaleRef * 0.075);
-    ctx.strokeStyle = 'rgba(120, 152, 224, 0.09)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let y = rect.minY + gap; y < rect.maxY; y += gap) {
-      const py = Math.round(y) + 0.5;
-      ctx.moveTo(rect.minX, py);
-      ctx.lineTo(rect.maxX, py);
+    const tile = loadImage(SCENE_SPRITES.floorTile);
+    if (tile.complete && tile.naturalWidth > 0) {
+      const size = Math.max(48, run.scaleRef * 0.16);
+      ctx.save();
+      ctx.globalAlpha = 0.16;
+      for (let y = 0; y < this.height; y += size) {
+        for (let x = 0; x < this.width; x += size) {
+          ctx.drawImage(tile, x, y, size, size);
+        }
+      }
+      ctx.restore();
+
+      ctx.fillStyle = 'rgba(13, 20, 48, 0.55)';
+      ctx.fillRect(0, 0, this.width, this.height);
     }
-    ctx.stroke();
   }
 
   private drawFrame(run: RunManager): void {
@@ -269,10 +273,20 @@ export class Scene {
     ctx.fill();
     ctx.restore();
 
-    // One sprite, one size, always — but it turns so the poles lead the way.
+    // The frame follows the state: flying and holding read differently, and the
+    // coil frames only show while the field actually has hold of something.
+    const pulling = run.board.some((o) => o.beingPulled);
+    const sprite = m.isMoving
+      ? pulling
+        ? SCENE_SPRITES.magnetMovingPulse
+        : SCENE_SPRITES.magnetMoving
+      : pulling
+        ? SCENE_SPRITES.magnetPulse
+        : SCENE_SPRITES.magnetIdle;
+
     drawSpriteFacing(
       ctx,
-      loadImage(SCENE_SPRITES.magnet),
+      loadImage(sprite),
       m.pos.x,
       m.pos.y,
       m.radius * 2.2,

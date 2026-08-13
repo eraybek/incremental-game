@@ -3,7 +3,7 @@ export interface Vec2 {
   y: number;
 }
 
-export type Rarity = 'common' | 'uncommon' | 'rare';
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface ItemDef {
   id: string;

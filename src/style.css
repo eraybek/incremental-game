@@ -840,6 +840,13 @@ body {
 .rarity-common { border-color: #9aa0b4; }
 .rarity-uncommon { border-color: #4cd964; }
 .rarity-rare { border-color: #4c9aff; }
+.rarity-epic { border-color: #a855f7; }
+.rarity-legendary { border-color: #ffb020; }
+
+/* The top two tiers carry a glow as well as a border, so a legendary pull is
+   visible in a grid of slots without reading a single label. */
+.rarity-epic { box-shadow: 0 0 10px rgba(168, 85, 247, 0.45); }
+.rarity-legendary { box-shadow: 0 0 12px rgba(255, 176, 32, 0.5); }
 
 /* Tapping a slot answers "is this worth chasing?" without leaving the grid. */
 .collection-detail {
@@ -872,10 +879,13 @@ body {
 
 .detail-info { flex: 1; min-width: 0; }
 .detail-name { font-size: 14px; font-weight: 800; }
-.detail-rarity { font-size: 11px; font-weight: 800; }
+.detail-rarity { font-size: 11px; font-weight: 800; display: flex; align-items: center; gap: 5px; }
+.rarity-gem { width: 13px; height: 13px; object-fit: contain; image-rendering: pixelated; }
 .detail-rarity.r-common { color: #9aa0b4; }
 .detail-rarity.r-uncommon { color: #4cd964; }
 .detail-rarity.r-rare { color: #4c9aff; }
+.detail-rarity.r-epic { color: #a855f7; }
+.detail-rarity.r-legendary { color: #ffb020; }
 
 .detail-stats { display: flex; gap: 16px; }
 .detail-stat { display: flex; flex-direction: column; align-items: flex-end; }

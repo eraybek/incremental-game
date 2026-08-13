@@ -4,12 +4,21 @@ import { ITEMS_BY_RARITY } from './content';
 
 let uidCounter = 1;
 
+/** Rolled from the rarest tier down, so each band is checked against the slice
+ *  of the roll below it. Loot Quality widens every band, but the top two stay
+ *  rare enough that pulling one is the story of the shift rather than a
+ *  routine pickup. */
 function pickRarity(qualityLevel: number): Rarity {
-  const uncommonChance = 0.14 + qualityLevel * 0.012;
+  const legendaryChance = 0.0015 + qualityLevel * 0.0011;
+  const epicChance = 0.005 + qualityLevel * 0.003;
   const rareChance = 0.01 + qualityLevel * 0.01;
+  const uncommonChance = 0.14 + qualityLevel * 0.012;
+
   const roll = Math.random();
-  if (roll < rareChance) return 'rare';
-  if (roll < rareChance + uncommonChance) return 'uncommon';
+  if (roll < legendaryChance) return 'legendary';
+  if (roll < legendaryChance + epicChance) return 'epic';
+  if (roll < legendaryChance + epicChance + rareChance) return 'rare';
+  if (roll < legendaryChance + epicChance + rareChance + uncommonChance) return 'uncommon';
   return 'common';
 }
 

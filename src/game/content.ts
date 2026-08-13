@@ -11,7 +11,7 @@ export const UI_SPRITES = {
   target: `${A}/hud/icon_target.png`,
   play: `${A}/buttons/btn_r2c1.png`,
   upgrade: `${A}/buttons/btn_r2c2.png`,
-  collection: `${A}/buttons/btn_r4c3.png`,
+  collection: `${A}/buttons/btn_r4c4.png`,
   lock: `${A}/buttons/btn_r4c2.png`,
   lightning: `${A}/hud/icon_lightning.png`,
   settings: `${A}/buttons/btn_r2c4.png`,
@@ -20,8 +20,18 @@ export const UI_SPRITES = {
 
 /** Everything the canvas scene draws directly. */
 export const SCENE_SPRITES = {
-  magnet: `${A}/magnet/magnet.png`,
+  /** Four frames keyed off what the magnet is doing: parked, flying, holding
+   *  something in the field, or both at once. Coils show on the two `pulse`
+   *  frames, which is what makes an active field readable at a glance. */
+  magnetIdle: `${A}/magnet/magnet_idle.png`,
+  magnetMoving: `${A}/magnet/magnet_moving.png`,
+  magnetPulse: `${A}/magnet/magnet_pulse.png`,
+  magnetMovingPulse: `${A}/magnet/magnet_moving_pulse.png`,
   hazardTile: `${A}/environment/tile_r6c3.png`,
+  floorTile: `${A}/environment/tile_r2c2.png`,
+  /** Sprite-based hit and collect bursts, replacing drawn circles. */
+  spark: `${A}/fx/fx_r4c2.png`,
+  dust: `${A}/fx/fx_r4c1.png`,
 };
 
 export const ITEMS: ItemDef[] = [
@@ -34,12 +44,13 @@ export const ITEMS: ItemDef[] = [
   { id: 'wrench', name: 'İngiliz Anahtarı', sprite: `${A}/collectibles/item_r2c7.png`, rarity: 'common', weight: 2, value: 8 },
   { id: 'spoon_a', name: 'Kaşık', sprite: `${A}/collectibles/item_r3c2.png`, rarity: 'common', weight: 1, value: 5 },
   { id: 'spoon_b', name: 'Kepçe', sprite: `${A}/collectibles/item_r3c3.png`, rarity: 'common', weight: 1, value: 5 },
-  { id: 'driver', name: 'Tornavida', sprite: `${A}/collectibles/item_r3c5.png`, rarity: 'common', weight: 2, value: 7 },
-  { id: 'tire', name: 'Lastik', sprite: `${A}/collectibles/item_r5c5.png`, rarity: 'common', weight: 3, value: 9 },
+  { id: 'bolt_long', name: 'Uzun Cıvata', sprite: `${A}/collectibles/item_r3c5.png`, rarity: 'common', weight: 2, value: 7 },
+  { id: 'pan', name: 'Tava', sprite: `${A}/collectibles/item_r5c5.png`, rarity: 'common', weight: 3, value: 9 },
   { id: 'mug', name: 'Kupa Bardak', sprite: `${A}/collectibles/item_r7c2.png`, rarity: 'common', weight: 1, value: 6 },
   { id: 'bucket', name: 'Kova', sprite: `${A}/collectibles/item_r7c3.png`, rarity: 'common', weight: 2, value: 7 },
   { id: 'battery', name: 'Pil', sprite: `${A}/collectibles/item_r3c7.png`, rarity: 'common', weight: 1, value: 6 },
-  { id: 'can_bulb', name: 'Teneke Kutu', sprite: `${A}/collectibles/item_r6c1.png`, rarity: 'common', weight: 2, value: 8 },
+  { id: 'bulb', name: 'Ampul', sprite: `${A}/collectibles/item_bulb.png`, rarity: 'common', weight: 1, value: 6 },
+  { id: 'bottle', name: 'Şişe', sprite: `${A}/collectibles/item_bottle.png`, rarity: 'common', weight: 2, value: 7 },
 
   // uncommon
   { id: 'keychain', name: 'Anahtarlık', sprite: `${A}/collectibles/item_r2c6.png`, rarity: 'uncommon', weight: 3, value: 16 },
@@ -51,27 +62,46 @@ export const ITEMS: ItemDef[] = [
   { id: 'camera', name: 'Kamera', sprite: `${A}/collectibles/item_r4c3.png`, rarity: 'uncommon', weight: 4, value: 22 },
   { id: 'glasses', name: 'Gözlük', sprite: `${A}/collectibles/item_r4c4.png`, rarity: 'uncommon', weight: 2, value: 17 },
   { id: 'book', name: 'Kitap', sprite: `${A}/collectibles/item_r5c1.png`, rarity: 'uncommon', weight: 3, value: 16 },
-  { id: 'chest', name: 'Sandık', sprite: `${A}/collectibles/item_r5c2.png`, rarity: 'uncommon', weight: 5, value: 24 },
   { id: 'backpack', name: 'Çanta', sprite: `${A}/collectibles/item_r5c3.png`, rarity: 'uncommon', weight: 4, value: 21 },
   { id: 'toolbox', name: 'Alet Çantası', sprite: `${A}/collectibles/item_r5c4.png`, rarity: 'uncommon', weight: 5, value: 23 },
-  { id: 'phone', name: 'Telefon', sprite: `${A}/collectibles/item_r6c2.png`, rarity: 'uncommon', weight: 3, value: 18 },
   { id: 'briefcase', name: 'Evrak Çantası', sprite: `${A}/collectibles/item_r7c4.png`, rarity: 'uncommon', weight: 5, value: 25 },
 
   // rare
   { id: 'trophy', name: 'Kupa', sprite: `${A}/collectibles/item_r4c5.png`, rarity: 'rare', weight: 6, value: 70 },
-  { id: 'diamond', name: 'Elmas', sprite: `${A}/collectibles/item_r4c6.png`, rarity: 'rare', weight: 5, value: 90 },
+  { id: 'chest', name: 'Hazine Sandığı', sprite: `${A}/collectibles/item_r5c2.png`, rarity: 'rare', weight: 7, value: 85 },
+
+  // epic
+  { id: 'diamond', name: 'Elmas', sprite: `${A}/collectibles/item_r4c6.png`, rarity: 'epic', weight: 6, value: 240 },
+  { id: 'crown', name: 'Taç', sprite: `${A}/collectibles/item_crown.png`, rarity: 'epic', weight: 8, value: 300 },
+
+  // legendary
+  { id: 'gem', name: 'Efsane Mücevher', sprite: `${A}/collectibles/item_gem.png`, rarity: 'legendary', weight: 9, value: 720 },
+  { id: 'star', name: 'Altın Yıldız', sprite: `${A}/collectibles/item_star.png`, rarity: 'legendary', weight: 10, value: 900 },
 ];
 
 export const ITEMS_BY_RARITY: Record<Rarity, ItemDef[]> = {
   common: ITEMS.filter((i) => i.rarity === 'common'),
   uncommon: ITEMS.filter((i) => i.rarity === 'uncommon'),
   rare: ITEMS.filter((i) => i.rarity === 'rare'),
+  epic: ITEMS.filter((i) => i.rarity === 'epic'),
+  legendary: ITEMS.filter((i) => i.rarity === 'legendary'),
 };
 
 export const RARITY_COLOR: Record<Rarity, string> = {
   common: '#9aa0b4',
   uncommon: '#4cd964',
   rare: '#4c9aff',
+  epic: '#a855f7',
+  legendary: '#ffb020',
+};
+
+/** The gem badge standing in for each tier, shown next to a rarity label. */
+export const RARITY_GEM: Record<Rarity, string> = {
+  common: `${A}/rarity/gem_common.png`,
+  uncommon: `${A}/rarity/gem_uncommon.png`,
+  rare: `${A}/rarity/gem_rare.png`,
+  epic: `${A}/rarity/gem_epic.png`,
+  legendary: `${A}/rarity/gem_legendary.png`,
 };
 
 export const UPGRADES: UpgradeDef[] = [
@@ -176,9 +206,9 @@ export interface Milestone {
 }
 
 export const MILESTONES: Milestone[] = [
-  { name: 'Live Drops', description: 'Vardiya sırasında yukarıdan yeni objeler düşer.', icon: `${A}/buttons/btn_r4c2.png` },
-  { name: 'Time Slow', description: 'Nişan alırken zaman yavaşlar.', icon: `${A}/buttons/btn_r4c2.png` },
-  { name: 'Automation', description: 'Küçük objeleri otomatik toplar.', icon: `${A}/buttons/btn_r4c2.png` },
+  { name: 'Live Drops', description: 'Vardiya sırasında yukarıdan yeni objeler düşer.', icon: `${A}/collectibles/item_r5c2.png` },
+  { name: 'Time Slow', description: 'Nişan alırken zaman yavaşlar.', icon: `${A}/hud/icon_hourglass.png` },
+  { name: 'Automation', description: 'Küçük objeleri otomatik toplar.', icon: `${A}/buttons/btn_r2c4.png` },
 ];
 
 export function upgradeCost(def: UpgradeDef, currentLevel: number): number {
