@@ -203,11 +203,11 @@ export class Ui {
 
     this.timePill = el('div', 'gauge timer');
     this.timeLabel = el('span', 'gauge-value');
-    this.timePill.append(img(UI_SPRITES.hourglass), this.timeLabel);
+    this.timePill.append(img(UI_SPRITES.clock), this.timeLabel);
 
     this.shotsPips = el('div', 'pips');
     const shotGauge = el('div', 'gauge');
-    shotGauge.append(img(UI_SPRITES.lightning), this.shotsPips);
+    shotGauge.append(img(UI_SPRITES.charge), this.shotsPips);
 
     const topCentre = el('div', 'bar-group centre');
     topCentre.append(this.timePill, shotGauge);
@@ -298,7 +298,7 @@ export class Ui {
     this.menuStats.innerHTML = '';
     this.menuStats.append(
       this.statCard(UI_SPRITES.coin, `${this.state.coins}`, 'para'),
-      this.statCard(UI_SPRITES.hourglass, `${this.state.shiftsDone}`, 'vardiya'),
+      this.statCard(UI_SPRITES.clock, `${this.state.shiftsDone}`, 'vardiya'),
       this.statCard(
         UI_SPRITES.collection,
         `${this.state.discovered.length}/${ITEMS.length}`,
@@ -403,8 +403,8 @@ export class Ui {
         payout.rareBonus > 0 ? `+${payout.rareBonus}` : '—',
         payout.rareBonus > 0 ? 'rare' : 'normal',
       ),
-      this.summaryRow(UI_SPRITES.hourglass, 'Kalan süre', fmtTime(payout.timeLeft)),
-      this.summaryRow(UI_SPRITES.lightning, 'Kalan atış', `${payout.shotsLeft}`),
+      this.summaryRow(UI_SPRITES.clock, 'Kalan süre', fmtTime(payout.timeLeft)),
+      this.summaryRow(UI_SPRITES.charge, 'Kalan atış', `${payout.shotsLeft}`),
     );
 
     const totalRow = this.summaryRow(UI_SPRITES.coin, 'Toplam kazanç', '0', 'accent');
@@ -467,7 +467,7 @@ export class Ui {
     const shell = el('div', 'hub');
 
     const head = el('div', 'hub-head');
-    const back = button('', 'icon-btn square', () => this.setScreen(this.returnTo), UI_SPRITES.back);
+    const back = button('', 'icon-btn square back', () => this.setScreen(this.returnTo), UI_SPRITES.back);
     back.title = 'Geri';
     this.hubTitle = el('h2');
     this.hubCoins = el('div', 'coin-badge');

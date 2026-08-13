@@ -275,14 +275,16 @@ export class Scene {
 
     // The frame follows the state: flying and holding read differently, and the
     // coil frames only show while the field actually has hold of something.
+    // Most urgent state wins: flying beats grabbing, grabbing beats sitting
+    // there with a full load, and idle is what is left.
     const pulling = run.board.some((o) => o.beingPulled);
     const sprite = m.isMoving
-      ? pulling
-        ? SCENE_SPRITES.magnetMovingPulse
-        : SCENE_SPRITES.magnetMoving
+      ? SCENE_SPRITES.magnetMoving
       : pulling
         ? SCENE_SPRITES.magnetPulse
-        : SCENE_SPRITES.magnetIdle;
+        : m.carried.length > 0
+          ? SCENE_SPRITES.magnetLoaded
+          : SCENE_SPRITES.magnetIdle;
 
     drawSpriteFacing(
       ctx,

@@ -48,8 +48,27 @@ src/
   main.ts   ekran akışı, girdi ve oyun döngüsü
 public/
   assets/   sprite'lar (magnet, collectibles, environment, fx, buttons, rarity, hud icons)
+assets-src/
+  sheet.png kaynak sprite sheet — public/assets bundan üretilir
+scripts/
+  slice-sheet.mjs  sheet'i tek tek sprite'lara ayırır
+  build-assets.mjs ayrılan sprite'lara isim verip public/assets'i yazar
 ```
 
 ## Asset'ler
 
-`public/assets/` altındaki sprite'lar, ilk GDD teslimatıyla gelen referans sprite sheet'inden otomatik arka plan temizleme ve dilimleme ile çıkarılmış placeholder görsellerdir. Nihai onaylı asset paketi geldiğinde aynı dosya adlarının üzerine yazmak (veya `src/game/content.ts` içindeki yolları güncellemek) yeterlidir.
+`public/assets/` elle düzenlenmez; tamamı `assets-src/sheet.png` dosyasından üretilir:
+
+```
+node scripts/build-assets.mjs
+```
+
+`slice-sheet.mjs` sheet'i sabit bir ızgarayla değil, her sprite'ın kendi piksellerini bularak kesiyor — satırlar düzensiz ve sağdaki sütunlar soldakilerle hizalı olmadığı için ızgara da satır/sütun projeksiyonu da tutmuyor. Bunun yerine bağlantılı bölgeler etiketleniyor. Sheet saydamlığı gerçek alfa yerine damalı desen olarak gömülü tuttuğundan `--checker` bayrağı o deseni yeniden kurup yalnızca ona uyan pikselleri arka plan sayıyor; sprite'ların siyah konturları düz bir parlaklık eşiğiyle yenip gideceği için bu şart.
+
+Hangi sprite'ın hangi isimle çıkacağı `build-assets.mjs` içindeki `NAMES` haritasında duruyor. Sheet değişirse önce aracı tek başına çalıştırıp ürettiği `_contact.png` üzerinden numaraları doğrula:
+
+```
+node scripts/slice-sheet.mjs assets-src/sheet.png /tmp/cut --checker
+```
+
+Sheet'teki her sprite kullanılmıyor: üzerine İngilizce metin basılmış hazır HUD hapları ve rozetler (arayüz Türkçe) ile gölgeleri örtüştüğü için tek parça çıkan yığınlar bilerek dışarıda bırakıldı.

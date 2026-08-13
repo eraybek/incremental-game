@@ -223,6 +223,9 @@ body {
 .icon-btn.square { padding: 5px; }
 .icon-btn.finish { background: #b3452f; border-color: #e0674c; white-space: nowrap; }
 .icon-btn img { width: 20px; height: 20px; image-rendering: pixelated; }
+/* The sheet has no back arrow, only a down one — turned a quarter to point the
+   way out of a screen. */
+.icon-btn.back img { transform: rotate(90deg); }
 .icon-btn:active { transform: translateY(1px); }
 
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
