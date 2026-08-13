@@ -116,6 +116,9 @@ export class Ui {
   private resultTitle!: HTMLElement;
   private resultPile!: HTMLElement;
   private resultSummary!: HTMLElement;
+  private resultPayout!: HTMLElement;
+  private resultZone!: HTMLElement;
+  private resultNew!: HTMLElement;
   private resultTable!: HTMLElement;
 
   // hub
@@ -417,6 +420,14 @@ export class Ui {
 
   // ----------------------------------------------------------------- result
 
+  /**
+   * The report answers three questions in the order they are asked: what did I
+   * earn, did I get anywhere, and what did I find. The payout used to be the
+   * last row of a list of five, which buried the one number the shift was for;
+   * it is now the headline. Under it sits the zone bar, because a shift that
+   * pays well but moves the quota by a hair is a different outcome from one
+   * that opens the next zone, and nothing on the old screen said which it was.
+   */
   private buildResult(): void {
     const panel = this.panel('result');
     const sheet = el('div', 'sheet report');
@@ -427,11 +438,12 @@ export class Ui {
     settingsBtn.title = 'Ayarlar';
     head.append(this.resultTitle, settingsBtn);
 
-    // Left: the haul as a pile. Right: the numbers that matter.
     this.resultPile = el('div', 'result-pile');
+
+    this.resultPayout = el('div', 'payout-hero');
+    this.resultZone = el('div', 'result-zone');
+    this.resultNew = el('div', 'result-new');
     this.resultSummary = el('div', 'result-summary');
-    const top = el('div', 'result-top');
-    top.append(this.resultPile, this.resultSummary);
 
     this.resultTable = el('div', 'result-table');
     const tableWrap = el('details', 'result-details');
@@ -447,7 +459,16 @@ export class Ui {
       button('Koleksiyon', 'big-btn info', () => this.openHub('collection'), UI_SPRITES.collection),
     );
 
-    sheet.append(head, top, tableWrap, actions);
+    sheet.append(
+      head,
+      this.resultPile,
+      this.resultPayout,
+      this.resultZone,
+      this.resultNew,
+      this.resultSummary,
+      tableWrap,
+      actions,
+    );
     panel.appendChild(sheet);
   }
 
@@ -465,7 +486,13 @@ export class Ui {
   }
 
   showResult(payout: PayoutResult): void {
-    this.resultTitle.textContent = `Vardiya ${payout.shift} tamamlandı`;
+    const zone = this.run.zone;
+    this.resultTitle.innerHTML = '';
+    const title = el('div', 'result-title-stack');
+    const zoneLine = el('div', 'result-zone-name', zone.name);
+    zoneLine.style.color = zone.accent;
+    title.append(zoneLine, el('div', 'result-shift-line', `Vardiya ${payout.shift} tamamlandı`));
+    this.resultTitle.appendChild(title);
 
     // Pile: one sprite per collected piece, scattered in a phyllotaxis spiral
     // so a big haul reads as a heap rather than a list.
@@ -491,6 +518,64 @@ export class Ui {
       });
     }
 
+    // The headline: the one number the whole shift was for.
+    this.resultPayout.innerHTML = '';
+    const amount = el('strong', 'payout-amount', '0');
+    this.resultPayout.append(img(UI_SPRITES.coin, 'payout-coin'), amount);
+    this.countUp(amount, payout.total);
+
+    // Zone progress, with this shift's contribution called out. `zoneProgress`
+    // has already been banked by the time the report opens, so the "before"
+    // value is derived by backing the payout out again.
+    this.resultZone.innerHTML = '';
+    const banked = this.state.zoneProgress[zone.id] ?? 0;
+    if (zone.quota === null) {
+      this.resultZone.append(el('div', 'zone-note', `${zone.name} — son bölge, hedef yok`));
+    } else {
+      const before = banked - payout.total;
+      const justCleared = before < zone.quota && banked >= zone.quota;
+      const next = nextZone(zone.id);
+
+      const row = el('div', 'result-zone-head');
+      row.append(
+        el('span', 'result-zone-label', next ? `${next.name} için` : 'Bölge hedefi'),
+        el('span', 'result-zone-num', `${fmtCoins(Math.min(banked, zone.quota))} / ${fmtCoins(zone.quota)}`),
+      );
+
+      const bar = el('div', 'zone-bar');
+      // Two fills: the settled part, plus this shift's slice in a lighter tone
+      // so the contribution is visible without an animation to catch.
+      const base = el('div', 'zone-bar-fill');
+      base.style.width = `${Math.min(100, (before / zone.quota) * 100)}%`;
+      const delta = el('div', 'zone-bar-delta');
+      delta.style.left = `${Math.min(100, (before / zone.quota) * 100)}%`;
+      delta.style.width = `${Math.min(100 - (before / zone.quota) * 100, (payout.total / zone.quota) * 100)}%`;
+      bar.append(base, delta);
+
+      this.resultZone.style.setProperty('--zone-accent', zone.accent);
+      this.resultZone.append(row, bar);
+      if (justCleared && next) {
+        this.resultZone.append(el('div', 'zone-cleared', `${next.name} açıldı!`));
+      }
+    }
+
+    // New discoveries as the pieces themselves — a count said nothing about
+    // what turned up, and finding something new is the collection's whole hook.
+    this.resultNew.innerHTML = '';
+    const newLines = payout.lines.filter((l) => l.isNew);
+    show(this.resultNew, newLines.length > 0);
+    if (newLines.length > 0) {
+      this.resultNew.append(el('div', 'new-title', 'Koleksiyona eklendi'));
+      const strip = el('div', 'new-strip');
+      for (const line of newLines) {
+        const chip = el('div', `new-chip rarity-${line.item.rarity}`);
+        chip.title = line.item.name;
+        chip.appendChild(img(line.item.sprite));
+        strip.appendChild(chip);
+      }
+      this.resultNew.appendChild(strip);
+    }
+
     this.resultSummary.innerHTML = '';
     this.resultSummary.append(
       this.summaryRow(UI_SPRITES.magnet, 'Toplanan parça', `${payout.itemCount}`),
@@ -503,17 +588,6 @@ export class Ui {
       this.summaryRow(null, 'Kalan süre', fmtTime(payout.timeLeft)),
       this.summaryRow(UI_SPRITES.charge, 'Kalan atış', `${payout.shotsLeft}`),
     );
-
-    const totalRow = this.summaryRow(UI_SPRITES.coin, 'Toplam kazanç', '0', 'accent');
-    totalRow.classList.add('total');
-    this.resultSummary.appendChild(totalRow);
-    this.countUp(totalRow.querySelector('.summary-value')!, payout.total);
-
-    if (payout.newCount > 0) {
-      this.resultSummary.appendChild(
-        el('div', 'discovery-note', `${payout.newCount} yeni parça koleksiyona eklendi`),
-      );
-    }
 
     this.resultTable.innerHTML = '';
     let index = 0;

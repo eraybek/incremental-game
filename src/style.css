@@ -579,9 +579,94 @@ body {
 /* The report must never need scrolling to reach its buttons: the pile shrinks
    and the breakdown collapses instead. */
 .sheet.report { display: flex; flex-direction: column; overflow: hidden; }
-.sheet.report .result-top { flex-shrink: 0; }
+.sheet.report .result-pile,
+.sheet.report .payout-hero,
+.sheet.report .result-zone,
+.sheet.report .result-new,
+.sheet.report .result-summary { flex-shrink: 0; }
 .sheet.report .result-details { flex: 1; min-height: 0; overflow-y: auto; }
 .sheet.report .result-actions { flex-shrink: 0; }
+
+/* Two lines in the header: the place, then the shift. The zone got no mention
+   at all before, so a report from Hurdalık and one from the vault read alike. */
+.result-title-stack { display: flex; flex-direction: column; gap: 1px; }
+.result-zone-name { font-size: 12px; font-weight: 900; letter-spacing: 1.2px; text-transform: uppercase; }
+.result-shift-line { font-size: 16px; font-weight: 800; }
+
+/* The headline. This is the number the shift was for; it used to be the last
+   row of a list of five. */
+.payout-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 4px 0 10px;
+}
+
+.payout-coin { width: 40px; height: 40px; image-rendering: pixelated; }
+
+.payout-amount {
+  font-size: clamp(38px, 12vmin, 56px);
+  font-weight: 900;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* Zone progress on the report: a shift that pays well but barely moves the
+   quota is a different outcome from one that opens the next zone. */
+.result-zone {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 12px;
+  padding: 9px 12px 11px;
+  margin-bottom: 9px;
+}
+
+.result-zone-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.result-zone-label { font-size: 12px; font-weight: 800; color: var(--text-dim); }
+.result-zone-num { font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.result-zone .zone-bar { margin-top: 7px; position: relative; }
+
+/* This shift's slice, lighter than the settled part so the contribution shows
+   without needing an animation the player has to be watching for. */
+.zone-bar-delta {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #ffffffcc;
+}
+
+.zone-cleared {
+  margin-top: 7px;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--zone-accent, var(--accent));
+}
+
+/* New finds shown as the pieces themselves — a bare count said nothing about
+   what turned up. */
+.result-new { margin-bottom: 9px; }
+.new-title { font-size: 12px; font-weight: 800; color: var(--accent); margin-bottom: 5px; }
+.new-strip { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.new-chip {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 2px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: new-pop 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+
+.new-chip img { width: 74%; height: 74%; object-fit: contain; image-rendering: pixelated; }
+
+@keyframes new-pop {
+  from { transform: scale(0.4); opacity: 0; }
+}
 
 .result-actions {
   display: grid;
@@ -626,22 +711,14 @@ body {
 
 /* ------------------------------------------------------------------- result */
 
-.result-top {
-  display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(240px, 1.2fr);
-  gap: 14px;
-  align-items: center;
-}
-
 @media (max-width: 620px) {
-  .result-top { grid-template-columns: 1fr; }
-  .result-pile { min-height: 110px; }
+  .result-pile { min-height: 104px; }
 }
 
 /* The haul rendered as a heap: reads as loot, not as a list. */
 .result-pile {
   position: relative;
-  min-height: 128px;
+  min-height: 112px;
   border-radius: 12px;
   background: radial-gradient(circle at 50% 55%, rgba(125, 211, 252, 0.09), transparent 68%);
 }
