@@ -5,6 +5,19 @@ import { asset } from '../assetPath';
 const A = asset('assets');
 
 /**
+ * Quotas were first set by eye at 1200 / 9000 / 45000 and then measured: an
+ * automated run of 41 shifts with random aim — the floor of what a player
+ * manages, since aiming at clusters beats it several times over — banked 774 in
+ * Hurdalık, holding around 21 per shift. That puts the opening zone at roughly
+ * 60 shifts at the floor and far fewer in real hands, which is about right.
+ *
+ * The zones after it were not. Earnings do not compound nearly as fast as the
+ * quotas climbed, so 9000 and 45000 worked out to ~180 and ~500 shifts. They
+ * are now 5000 and 18000, aimed at each zone taking somewhat longer than the
+ * one before it rather than several times longer. Richer pools carry part of
+ * the increase on their own: a rare pull is worth ten commons, so the same
+ * board pays far more in Liman than in Hurdalık.
+ *
  * Zones are the game's spine. Before them a shift was "Vardiya 41" on the same
  * arena with a random board — the number went up but nothing in the world
  * changed, so there was nowhere to be going.
@@ -44,7 +57,7 @@ export const ZONES: ZoneDef[] = [
     accent: '#4bb4ff',
     floorTile: `${A}/environment/metal.png`,
     frameTile: `${A}/environment/hazard.png`,
-    quota: 9000,
+    quota: 5000,
     pool: {
       common: 0.8,
       uncommon: 1,
@@ -60,7 +73,7 @@ export const ZONES: ZoneDef[] = [
     accent: '#c07cff',
     floorTile: `${A}/environment/grate.png`,
     frameTile: `${A}/environment/hazard.png`,
-    quota: 45000,
+    quota: 18000,
     pool: {
       common: 0.5,
       uncommon: 0.9,
