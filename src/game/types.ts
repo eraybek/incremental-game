@@ -12,6 +12,15 @@ export interface ItemDef {
   rarity: Rarity;
   weight: number;
   value: number;
+  /**
+   * Relative spawn chance within its tier; 1 when omitted. This is a visual
+   * dial, not an economic one — the common tier is 24 pieces of which most are
+   * small grey fasteners, so an evenly rolled board came out as a field of
+   * identical grey shapes on a dark floor. Turning the near-duplicates down and
+   * the characterful pieces up fixes how a board reads without touching what
+   * anything is worth.
+   */
+  spawn?: number;
 }
 
 export type UpgradeId =

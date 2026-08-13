@@ -40,33 +40,39 @@ const item = (
   rarity: Rarity,
   weight: number,
   value: number,
-): ItemDef => ({ id, name, sprite: `${A}/collectibles/${file}.png`, rarity, weight, value });
+  spawn?: number,
+): ItemDef => ({ id, name, sprite: `${A}/collectibles/${file}.png`, rarity, weight, value, spawn });
+
+/** Small grey fasteners: right for a scrapyard, but six of them look alike. */
+const DRAB = 0.45;
+/** Pieces with their own colour or silhouette, worth seeing more often. */
+const VIVID = 1.6;
 
 export const ITEMS: ItemDef[] = [
   // Common: the scrapyard floor. Light, cheap, and what most of a shift is.
-  item('paperclip', 'Ataş', 'paperclip', 'common', 1, 3),
-  item('screw', 'Vida', 'screw', 'common', 1, 4),
-  item('bolt', 'Cıvata', 'bolt', 'common', 1, 4),
-  item('washer', 'Rondela', 'washer', 'common', 1, 4),
-  item('nut', 'Somun', 'nut', 'common', 1, 5),
-  item('nail', 'Çivi', 'nail', 'common', 1, 4),
-  item('bottlecap', 'Kapak', 'bottlecap', 'common', 1, 4),
-  item('can_red', 'Kırmızı Kutu', 'can_red', 'common', 2, 6),
-  item('can_blue', 'Mavi Kutu', 'can_blue', 'common', 2, 6),
+  item('paperclip', 'Ataş', 'paperclip', 'common', 1, 3, DRAB),
+  item('screw', 'Vida', 'screw', 'common', 1, 4, DRAB),
+  item('bolt', 'Cıvata', 'bolt', 'common', 1, 4, DRAB),
+  item('washer', 'Rondela', 'washer', 'common', 1, 4, DRAB),
+  item('nut', 'Somun', 'nut', 'common', 1, 5, DRAB),
+  item('nail', 'Çivi', 'nail', 'common', 1, 4, DRAB),
+  item('bottlecap', 'Kapak', 'bottlecap', 'common', 1, 4, DRAB),
+  item('can_red', 'Kırmızı Kutu', 'can_red', 'common', 2, 6, VIVID),
+  item('can_blue', 'Mavi Kutu', 'can_blue', 'common', 2, 6, VIVID),
   item('wrench', 'İngiliz Anahtarı', 'wrench', 'common', 2, 8),
   item('spanner', 'Kurbağacık', 'spanner', 'common', 2, 8),
-  item('screwdriver', 'Tornavida', 'screwdriver', 'common', 2, 7),
+  item('screwdriver', 'Tornavida', 'screwdriver', 'common', 2, 7, VIVID),
   item('spoon', 'Kaşık', 'spoon', 'common', 1, 5),
   item('ladle', 'Kepçe', 'ladle', 'common', 2, 6),
   item('gear', 'Dişli', 'gear', 'common', 2, 7),
   item('spring', 'Yay', 'spring', 'common', 2, 6),
-  item('bulb', 'Ampul', 'bulb', 'common', 1, 6),
+  item('bulb', 'Ampul', 'bulb', 'common', 1, 6, VIVID),
   item('chain', 'Zincir', 'chain', 'common', 2, 7),
   item('disc', 'Disk', 'disc', 'common', 2, 7),
   item('tyre', 'Lastik', 'tyre', 'common', 3, 9),
   item('pan', 'Tava', 'pan', 'common', 3, 9),
-  item('mallet', 'Tokmak', 'mallet', 'common', 3, 9),
-  item('floppy', 'Disket', 'floppy', 'common', 1, 6),
+  item('mallet', 'Tokmak', 'mallet', 'common', 3, 9, VIVID),
+  item('floppy', 'Disket', 'floppy', 'common', 1, 6, VIVID),
   item('socket', 'Priz', 'socket', 'common', 2, 7),
 
   // Uncommon: things somebody would miss. Worth aiming for.

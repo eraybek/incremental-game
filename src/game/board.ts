@@ -31,13 +31,39 @@ function pickRarity(qualityLevel: number, zone: ZoneDef): Rarity {
   return 'common';
 }
 
-function pickItem(qualityLevel: number, zone: ZoneDef): ItemDef {
+/**
+ * How much a piece's chance drops for each copy already on the board. Drawing
+ * eighteen pieces with replacement from a two-dozen pool throws up duplicates
+ * often, and four identical cans in one board reads as a bug even though it is
+ * ordinary luck. At 0.35 a second copy is uncommon and a fourth is close to
+ * impossible, without ever forbidding a repeat outright.
+ */
+const REPEAT_FALLOFF = 0.35;
+
+/** Weighted draw within a tier, honouring `spawn` and what is already placed. */
+function pickFrom(pool: ItemDef[], placed: Map<string, number>): ItemDef {
+  const weightOf = (item: ItemDef): number =>
+    (item.spawn ?? 1) * Math.pow(REPEAT_FALLOFF, placed.get(item.id) ?? 0);
+
+  let total = 0;
+  for (const item of pool) total += weightOf(item);
+
+  let roll = Math.random() * total;
+  for (const item of pool) {
+    roll -= weightOf(item);
+    if (roll < 0) return item;
+  }
+  return pool[pool.length - 1];
+}
+
+function pickItem(qualityLevel: number, zone: ZoneDef, placed: Map<string, number>): ItemDef {
   const rarity = pickRarity(qualityLevel, zone);
   const pool = ITEMS_BY_RARITY[rarity];
   // A zone that weights `common` down can still land on it when every richer
   // band misses; falling back keeps the board full rather than short.
-  if (pool.length === 0) return ITEMS_BY_RARITY.common[0];
-  return pool[Math.floor(Math.random() * pool.length)];
+  const item = pickFrom(pool.length === 0 ? ITEMS_BY_RARITY.common : pool, placed);
+  placed.set(item.id, (placed.get(item.id) ?? 0) + 1);
+  return item;
 }
 
 export function generateBoard(
@@ -54,10 +80,19 @@ export function generateBoard(
 
   // Scale the count by area rather than by a single axis, so the board reads the
   // same whether the arena is a tall portrait column or a wide desktop window.
+  //
+  // The multiplier used to be 7.5, which in portrait worked out to 12.2 — under
+  // the floor of 12. So every shift on a phone got exactly the minimum board no
+  // matter what, and the ceiling of 22 was unreachable. At 11 a portrait arena
+  // holds about 18, which fills the space without crowding: the pieces need
+  // `radius * 2.25` between them and the arena has room for roughly a hundred
+  // at that spacing.
   const density = (width * height) / (scaleRef * scaleRef);
-  const count = Math.round(Math.min(22, Math.max(12, density * 7.5)));
+  const count = Math.round(Math.min(26, Math.max(14, density * 11)));
 
   const objects: BoardObject[] = [];
+  // Copies already placed, so repeats can be damped as the board fills.
+  const placed = new Map<string, number>();
   const margin = radius * 1.6;
   const keepout = magnetRadius + radius + scaleRef * 0.1;
   const minSpacing = radius * 2.25;
@@ -81,7 +116,7 @@ export function generateBoard(
 
     objects.push({
       uid: uidCounter++,
-      item: pickItem(qualityLevel, zone),
+      item: pickItem(qualityLevel, zone, placed),
       pos: { x, y: rect.minY - radius * 2 - Math.random() * height },
       targetPos: { x, y },
       radius,
