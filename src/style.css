@@ -999,9 +999,19 @@ body {
   white-space: nowrap;
 }
 
-.filter-chip.active { background: var(--accent); border-color: var(--accent); color: #221800; }
+.filter-chip.active { background: var(--chip, var(--accent)); border-color: var(--chip, var(--accent)); color: #08203f; }
 .filter-chip.locked { opacity: 0.4; cursor: not-allowed; }
 .filter-chip.locked::after { content: ' 🔒'; }
+
+/* Each tier keeps its colour even when the chip is not the active one, so the
+   row doubles as the legend for the dots in the grid. */
+.filter-chip.f-all { --chip: #b07cff; }
+.filter-chip.f-common { --chip: #9aa0b4; color: #b9c0d6; }
+.filter-chip.f-uncommon { --chip: #4cd964; color: #7ee394; }
+.filter-chip.f-rare { --chip: #4c9aff; color: #86bcff; }
+.filter-chip.f-epic { --chip: #a855f7; color: #c98dff; }
+.filter-chip.f-legendary { --chip: #ffb020; color: #ffcd6b; }
+.filter-chip.active { color: #08203f; }
 
 .collection-count { font-size: 11px; color: var(--text-dim); font-weight: 800; }
 
@@ -1034,6 +1044,34 @@ body {
   font-weight: 900;
   color: var(--text-dim);
 }
+
+/* Rarity restated as a corner dot. The frame carries it too, but a grey or
+   blue frame on a blue panel is nearly invisible at this size. */
+.slot-dot {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.45);
+}
+
+.collection-slot.locked .slot-dot { opacity: 0.25; }
+
+/* The collection's payoff, stated where the grid can be seen next to it. */
+.collection-bonus {
+  flex-shrink: 0;
+  background: var(--panel);
+  border: 2px solid var(--panel-edge);
+  border-radius: 14px;
+  padding: 9px 13px;
+}
+
+.bonus-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.bonus-title { font-size: 13px; font-weight: 900; color: var(--accent); }
+.bonus-value { font-size: 19px; font-weight: 900; color: var(--accent); font-variant-numeric: tabular-nums; }
+.bonus-note { margin-top: 3px; font-size: 11.5px; color: var(--text-dim); line-height: 1.35; }
 
 .rarity-common { border-color: #9aa0b4; }
 .rarity-uncommon { border-color: #4cd964; }

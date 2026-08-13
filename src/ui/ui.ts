@@ -10,8 +10,10 @@ import {
   upgradeCost,
 } from '../game/content';
 import {
+  COLLECTION_BONUS_PER_ITEM,
   buyUpgrade,
   canAfford,
+  collectionBonus,
   magnetPower,
   saveState,
   shiftDuration,
@@ -127,6 +129,7 @@ export class Ui {
   private collectionCount!: HTMLElement;
   private collectionDetail!: HTMLElement;
   private collectionFilters!: HTMLElement;
+  private collectionBonusCard!: HTMLElement;
   private activeFilter: RarityFilter = 'all';
   private selectedItemId: string | null = null;
   private soundBtn!: HTMLButtonElement;
@@ -684,7 +687,9 @@ export class Ui {
 
     this.collectionFilters = el('div', 'filter-row');
     for (const f of FILTERS) {
-      const btn = button(f.label, `filter-chip${f.locked ? ' locked' : ''}`, () => {
+      // Each chip carries its tier's colour, so the filter row doubles as the
+      // rarity legend the grid's dots are read against.
+      const btn = button(f.label, `filter-chip f-${f.id}${f.locked ? ' locked' : ''}`, () => {
         if (f.locked) return;
         this.activeFilter = f.id;
         this.renderCollection();
@@ -708,7 +713,9 @@ export class Ui {
     const scroll = el('div', 'collection-scroll');
     scroll.appendChild(this.collectionGrid);
 
-    panel.append(head, scroll, this.collectionDetail);
+    this.collectionBonusCard = el('div', 'collection-bonus');
+
+    panel.append(head, scroll, this.collectionDetail, this.collectionBonusCard);
     return panel;
   }
 
@@ -734,6 +741,11 @@ export class Ui {
       const has = found.has(item.id);
       const slot = el('div', `collection-slot${has ? ` rarity-${item.rarity}` : ' locked'}`);
       slot.appendChild(img(item.sprite));
+      // The frame already carries the tier, but grey-on-blue is nearly
+      // invisible at this size, so the corner dot states it outright.
+      const dot = el('span', 'slot-dot');
+      dot.style.background = RARITY_COLOR[item.rarity];
+      slot.appendChild(dot);
       if (!has) slot.appendChild(el('span', 'slot-lock', '?'));
       if (this.selectedItemId === item.id) slot.classList.add('selected');
       slot.addEventListener('click', () => {
@@ -743,6 +755,22 @@ export class Ui {
       });
       this.collectionGrid.appendChild(slot);
     }
+
+    this.collectionBonusCard.innerHTML = '';
+    const bonus = collectionBonus(this.state);
+    const head = el('div', 'bonus-head');
+    head.append(
+      el('span', 'bonus-title', 'Koleksiyon Bonusu'),
+      el('strong', 'bonus-value', `+%${(bonus * 100).toFixed(1)}`),
+    );
+    this.collectionBonusCard.append(
+      head,
+      el(
+        'div',
+        'bonus-note',
+        `Keşfedilen her parça kazancını kalıcı olarak %${(COLLECTION_BONUS_PER_ITEM * 100).toFixed(1)} artırır.`,
+      ),
+    );
 
     this.renderCollectionDetail(found);
   }

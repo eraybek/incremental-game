@@ -96,8 +96,18 @@ export function loadEfficiency(state: PersistentState): number {
   return Math.min(0.85, state.upgrades.loadEff * 0.07);
 }
 
+/** Earnings bonus from the collection: every piece ever discovered pays a
+ *  small permanent cut. Completing all of them is worth about a quarter more
+ *  on every shift, which is what turns the collection from a checklist into a
+ *  reason to go back to an early zone for the one common piece still missing. */
+export const COLLECTION_BONUS_PER_ITEM = 0.005;
+
+export function collectionBonus(state: PersistentState): number {
+  return state.discovered.length * COLLECTION_BONUS_PER_ITEM;
+}
+
 export function lootValueMultiplier(state: PersistentState): number {
-  return 1 + state.upgrades.lootValue * 0.12;
+  return (1 + state.upgrades.lootValue * 0.12) * (1 + collectionBonus(state));
 }
 
 export function lootQualityLevel(state: PersistentState): number {
