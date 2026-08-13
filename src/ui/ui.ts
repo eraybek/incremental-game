@@ -104,8 +104,11 @@ export class Ui {
 
   // menu
   private menuStart!: HTMLButtonElement;
-  private menuStats!: HTMLElement;
   private menuCoins!: HTMLElement;
+  private menuTime!: HTMLElement;
+  private menuShots!: HTMLElement;
+  private upgradeTile!: HTMLButtonElement;
+  private collectionTile!: HTMLButtonElement;
   private zoneCard!: HTMLElement;
   private zoneStrip!: HTMLElement;
 
@@ -292,11 +295,20 @@ export class Ui {
     const panel = this.panel('menu', 'menu-screen');
     panel.style.backgroundImage = `url('${MENU_BACKGROUND}')`;
 
+    // The three numbers that describe the next shift live in the top bar as
+    // pills, the way the reference layout has them. They used to be a block of
+    // four rows in the middle of the screen, which is what made the menu read
+    // as a dashboard rather than a front door.
     const topBar = el('div', 'menu-top');
     this.menuCoins = el('div', 'coin-pill');
+    this.menuTime = el('div', 'top-pill');
+    this.menuShots = el('div', 'top-pill');
     const settingsBtn = button('', 'round-btn', () => this.openHub('settings'), UI_SPRITES.settings);
     settingsBtn.title = 'Ayarlar';
-    topBar.append(this.menuCoins, settingsBtn);
+    topBar.append(this.menuCoins, this.menuTime, this.menuShots, settingsBtn);
+
+    const logo = el('div', 'menu-logo');
+    logo.append(el('span', 'logo-a', 'MAGNET'), el('span', 'logo-b', 'INCREMENTAL'));
 
     // Zone card: name, quota bar and the zone's own accent stripe.
     this.zoneCard = el('div', 'zone-card');
@@ -305,21 +317,19 @@ export class Ui {
     // missing common item for the collection.
     this.zoneStrip = el('div', 'zone-strip');
 
-    this.menuStats = el('div', 'stat-rows');
-
     this.menuStart = button('OYNA', 'play-btn', () => this.onStartShift?.());
+    this.menuStart.appendChild(el('small', undefined, 'vardiyaya başla'));
 
-    const tiles = el('div', 'menu-tiles');
-    tiles.append(
-      this.menuTile('Geliştirmeler', 'tile-upgrades', UI_SPRITES.upgrade, () =>
-        this.openHub('upgrades'),
-      ),
-      this.menuTile('Koleksiyon', 'tile-collection', UI_SPRITES.collection, () =>
-        this.openHub('collection'),
-      ),
+    this.upgradeTile = this.menuTile('Geliştirmeler', 'tile-upgrades', UI_SPRITES.upgrade, () =>
+      this.openHub('upgrades'),
     );
+    this.collectionTile = this.menuTile('Koleksiyon', 'tile-collection', UI_SPRITES.collection, () =>
+      this.openHub('collection'),
+    );
+    const tiles = el('div', 'menu-tiles');
+    tiles.append(this.upgradeTile, this.collectionTile);
 
-    panel.append(topBar, this.zoneCard, this.zoneStrip, this.menuStats, this.menuStart, tiles);
+    panel.append(topBar, logo, this.zoneCard, this.zoneStrip, this.menuStart, tiles);
   }
 
   private menuTile(
@@ -329,16 +339,8 @@ export class Ui {
     onClick: () => void,
   ): HTMLButtonElement {
     const tile = button(label, `menu-tile ${tone}`, onClick, icon);
+    tile.appendChild(el('small'));
     return tile;
-  }
-
-  /** One "label ......... value" line, the shape the stat block uses. */
-  private statRow(icon: string | null, label: string, value: string): HTMLElement {
-    const row = el('div', 'stat-row');
-    if (icon) row.appendChild(img(icon));
-    else row.classList.add('no-icon');
-    row.append(el('span', 'stat-row-label', label), el('strong', 'stat-row-value', value));
-    return row;
   }
 
   private refreshMenu(): void {
@@ -393,17 +395,16 @@ export class Ui {
       this.zoneStrip.appendChild(chip);
     }
 
-    this.menuStats.innerHTML = '';
-    this.menuStats.append(
-      this.statRow(null, 'Vardiya süresi', `${shiftDuration(this.state)} sn`),
-      this.statRow(UI_SPRITES.charge, 'Atış hakkı', `${shiftShots(this.state)}`),
-      this.statRow(UI_SPRITES.magnet, 'Mıknatıs gücü', magnetPower(this.state).toFixed(1)),
-      this.statRow(
-        UI_SPRITES.collection,
-        'Koleksiyon',
-        `${this.state.discovered.length}/${ITEMS.length}`,
-      ),
-    );
+    this.menuTime.textContent = `${shiftDuration(this.state)} sn`;
+    this.menuShots.innerHTML = '';
+    this.menuShots.append(img(UI_SPRITES.charge), el('span', undefined, `${shiftShots(this.state)}`));
+
+    // Each tile says what it is worth opening for, so the numbers that used to
+    // need their own block ride along on the buttons instead.
+    this.upgradeTile.querySelector('small')!.textContent =
+      `${magnetPower(this.state).toFixed(1)} güç`;
+    this.collectionTile.querySelector('small')!.textContent =
+      `${this.state.discovered.length}/${ITEMS.length}`;
   }
 
   // ------------------------------------------------------------------ intro
