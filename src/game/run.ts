@@ -2,6 +2,7 @@ import type { BoardObject, ItemDef, PersistentState } from './types';
 import { generateBoard, randomMagnetStart } from './board';
 import { Magnet, type ArenaRect } from './magnet';
 import { ITEMS } from './content';
+import { zoneOf } from './zones';
 import {
   loadEfficiency,
   launchMultiplier,
@@ -83,6 +84,11 @@ export class RunManager {
   private boardHadObjects = false;
   /** Grace period so the final pickup is visible before the report appears. */
   private clearedTimer = 0;
+
+  /** The zone the next shift happens in. */
+  get zone() {
+    return zoneOf(this.state.zone);
+  }
 
   constructor(state: PersistentState) {
     this.state = state;
@@ -177,6 +183,7 @@ export class RunManager {
       this.magnet.pos,
       this.magnet.radius,
       lootQualityLevel(this.state),
+      this.zone,
     );
     this.boardHadObjects = this.board.length > 0;
     this.phase = 'playing';
@@ -363,6 +370,10 @@ export class RunManager {
     };
 
     this.state.coins += total;
+    // Zone progress is banked separately from the wallet: spending money must
+    // not undo the progress that opens the next zone.
+    this.state.zoneProgress[this.state.zone] =
+      (this.state.zoneProgress[this.state.zone] ?? 0) + total;
     this.state.discovered = Array.from(discovered);
     this.state.shiftsDone += 1;
     saveState(this.state);

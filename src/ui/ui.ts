@@ -9,7 +9,15 @@ import {
   UPGRADES,
   upgradeCost,
 } from '../game/content';
-import { buyUpgrade, canAfford, saveState } from '../game/state';
+import {
+  buyUpgrade,
+  canAfford,
+  magnetPower,
+  saveState,
+  shiftDuration,
+  shiftShots,
+} from '../game/state';
+import { ZONES, isZoneUnlocked, nextZone } from '../game/zones';
 import { isAudioEnabled, playSfx, setAudioEnabled, setSfxVolume } from '../audio/sfx';
 import { button as rawButton, el, img, show } from './dom';
 
@@ -56,6 +64,11 @@ const FILTERS: Array<{ id: RarityFilter; label: string; locked?: boolean }> = [
   { id: 'legendary', label: 'Efsanevi' },
 ];
 
+/** Thousands separator, so a five-figure balance is still readable at a glance. */
+function fmtCoins(n: number): string {
+  return n.toLocaleString('tr-TR');
+}
+
 function fmtTime(seconds: number): string {
   const s = Math.max(0, Math.ceil(seconds));
   return `0:${s.toString().padStart(2, '0')}`;
@@ -90,6 +103,9 @@ export class Ui {
   // menu
   private menuStart!: HTMLButtonElement;
   private menuStats!: HTMLElement;
+  private menuCoins!: HTMLElement;
+  private zoneCard!: HTMLElement;
+  private zoneStrip!: HTMLElement;
 
   // intro
   private introTitle!: HTMLElement;
@@ -260,54 +276,125 @@ export class Ui {
 
   // ------------------------------------------------------------------- menu
 
+  /**
+   * The menu is the game's shop window: it has to answer "where am I, how
+   * strong am I, and what can I press" before anything else. So it leads with
+   * the zone card — the thing that says the shift has a destination — then the
+   * four stats an upgrade actually moves, then the play button.
+   */
   private buildMenu(): void {
-    const panel = this.panel('menu', 'screen-center');
+    const panel = this.panel('menu', 'menu-screen');
 
-    const logo = el('div', 'logo');
-    logo.innerHTML = 'MAGNET <span>INCREMENTAL</span>';
+    const topBar = el('div', 'menu-top');
+    this.menuCoins = el('div', 'coin-pill');
+    const settingsBtn = button('', 'round-btn', () => this.openHub('settings'), UI_SPRITES.settings);
+    settingsBtn.title = 'Ayarlar';
+    topBar.append(this.menuCoins, settingsBtn);
 
-    const tagline = el(
-      'div',
-      'tagline',
-      'Hurdalıkta bir vardiya. Mıknatısı çekip bırak, alanına giren metali topla, vardiya sonunda hepsini paraya çevir.',
+    // Zone card: name, quota bar and the zone's own accent stripe.
+    this.zoneCard = el('div', 'zone-card');
+    // A cleared zone stays open, so the strip is a switcher rather than a
+    // one-way door — an early zone is still the fastest place to farm a
+    // missing common item for the collection.
+    this.zoneStrip = el('div', 'zone-strip');
+
+    this.menuStats = el('div', 'stat-rows');
+
+    this.menuStart = button('OYNA', 'play-btn', () => this.onStartShift?.());
+
+    const tiles = el('div', 'menu-tiles');
+    tiles.append(
+      this.menuTile('Geliştirmeler', 'tile-upgrades', UI_SPRITES.upgrade, () =>
+        this.openHub('upgrades'),
+      ),
+      this.menuTile('Koleksiyon', 'tile-collection', UI_SPRITES.collection, () =>
+        this.openHub('collection'),
+      ),
     );
 
-    this.menuStats = el('div', 'menu-stats');
-    this.menuStart = button('VARDİYAYA BAŞLA', 'big-btn hero', () => this.onStartShift?.(), UI_SPRITES.play);
-
-    const row = el('div', 'btn-row');
-    row.append(
-      button('Geliştirmeler', 'ghost-btn', () => this.openHub('upgrades'), UI_SPRITES.upgrade),
-      button('Koleksiyon', 'ghost-btn', () => this.openHub('collection'), UI_SPRITES.collection),
-      button('Ayarlar', 'ghost-btn', () => this.openHub('settings'), UI_SPRITES.settings),
-    );
-
-    panel.append(logo, tagline, this.menuStats, this.menuStart, row);
+    panel.append(topBar, this.zoneCard, this.zoneStrip, this.menuStats, this.menuStart, tiles);
   }
 
-  /** `icon` is optional: the sheet has no clock, and a stand-in that reads as a
-   *  smudge at this size is worse than no icon at all — the number and its
-   *  label already say what the card is. */
-  private statCard(icon: string | null, value: string, label: string): HTMLElement {
-    const card = el('div', 'stat-card');
-    if (icon) card.appendChild(img(icon));
-    else card.classList.add('no-icon');
-    card.append(el('strong', undefined, value), el('span', undefined, label));
-    return card;
+  private menuTile(
+    label: string,
+    tone: string,
+    icon: string,
+    onClick: () => void,
+  ): HTMLButtonElement {
+    const tile = button(label, `menu-tile ${tone}`, onClick, icon);
+    return tile;
+  }
+
+  /** One "label ......... value" line, the shape the stat block uses. */
+  private statRow(icon: string | null, label: string, value: string): HTMLElement {
+    const row = el('div', 'stat-row');
+    if (icon) row.appendChild(img(icon));
+    else row.classList.add('no-icon');
+    row.append(el('span', 'stat-row-label', label), el('strong', 'stat-row-value', value));
+    return row;
   }
 
   private refreshMenu(): void {
-    this.menuStart.querySelector('span')!.textContent =
-      this.state.shiftsDone === 0 ? 'VARDİYAYA BAŞLA' : `VARDİYA ${this.run.currentShift}`;
+    this.menuCoins.innerHTML = '';
+    this.menuCoins.append(img(UI_SPRITES.coin), el('span', undefined, fmtCoins(this.state.coins)));
+
+    const zone = this.run.zone;
+    const banked = this.state.zoneProgress[zone.id] ?? 0;
+    const cleared = zone.quota === null || banked >= zone.quota;
+    const next = nextZone(zone.id);
+
+    this.zoneCard.innerHTML = '';
+    this.zoneCard.style.setProperty('--zone-accent', zone.accent);
+
+    const head = el('div', 'zone-head');
+    head.append(
+      el('div', 'zone-name', zone.name),
+      el('div', 'zone-shift', `Vardiya ${this.run.currentShift}`),
+    );
+
+    const bar = el('div', 'zone-bar');
+    const fill = el('div', 'zone-bar-fill');
+    fill.style.width = zone.quota === null ? '100%' : `${Math.min(100, (banked / zone.quota) * 100)}%`;
+    bar.appendChild(fill);
+
+    // The line under the bar is the only place that says why the bar matters,
+    // so it names what clearing the quota actually opens.
+    const note = cleared
+      ? next
+        ? `Tamamlandı — ${next.name} açıldı`
+        : zone.subtitle
+      : `${fmtCoins(banked)} / ${fmtCoins(zone.quota!)} — ${next ? `${next.name} açılır` : 'hedef'}`;
+
+    this.zoneCard.append(head, el('div', 'zone-sub', zone.subtitle), bar, el('div', 'zone-note', note));
+
+    this.zoneStrip.innerHTML = '';
+    for (const z of ZONES) {
+      const unlocked = isZoneUnlocked(z.id, this.state.zoneProgress);
+      const chip = button(
+        unlocked ? z.name : '???',
+        `zone-chip${z.id === zone.id ? ' active' : ''}${unlocked ? '' : ' locked'}`,
+        () => {
+          if (!unlocked || z.id === this.state.zone) return;
+          this.state.zone = z.id;
+          saveState(this.state);
+          this.refreshMenu();
+        },
+        unlocked ? undefined : UI_SPRITES.lock,
+      );
+      chip.style.setProperty('--zone-accent', z.accent);
+      chip.disabled = !unlocked;
+      this.zoneStrip.appendChild(chip);
+    }
 
     this.menuStats.innerHTML = '';
     this.menuStats.append(
-      this.statCard(UI_SPRITES.coin, `${this.state.coins}`, 'para'),
-      this.statCard(null, `${this.state.shiftsDone}`, 'vardiya'),
-      this.statCard(
+      this.statRow(null, 'Vardiya süresi', `${shiftDuration(this.state)} sn`),
+      this.statRow(UI_SPRITES.charge, 'Atış hakkı', `${shiftShots(this.state)}`),
+      this.statRow(UI_SPRITES.magnet, 'Mıknatıs gücü', magnetPower(this.state).toFixed(1)),
+      this.statRow(
         UI_SPRITES.collection,
+        'Koleksiyon',
         `${this.state.discovered.length}/${ITEMS.length}`,
-        'koleksiyon',
       ),
     );
   }

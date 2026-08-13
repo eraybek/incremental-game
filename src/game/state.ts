@@ -1,4 +1,4 @@
-import type { PersistentState, UpgradeId } from './types';
+import type { PersistentState, UpgradeId, ZoneId } from './types';
 import { BASE_RUN_DURATION, BASE_SHOTS, SECONDS_PER_TIME_LEVEL, UPGRADES, upgradeCost } from './content';
 
 const STORAGE_KEY = 'magnet-incremental-save-v1';
@@ -16,6 +16,8 @@ function emptyUpgrades(): Record<UpgradeId, number> {
 export function createInitialState(): PersistentState {
   return {
     coins: 0,
+    zone: 'hurdalik',
+    zoneProgress: {},
     upgrades: emptyUpgrades(),
     discovered: [],
     shiftsDone: 0,
@@ -34,6 +36,10 @@ export function loadState(): PersistentState {
     const base = createInitialState();
     return {
       coins: typeof parsed.coins === 'number' ? parsed.coins : base.coins,
+      zone: typeof parsed.zone === 'string' ? (parsed.zone as ZoneId) : base.zone,
+      zoneProgress: typeof parsed.zoneProgress === 'object' && parsed.zoneProgress !== null
+        ? parsed.zoneProgress
+        : {},
       upgrades: { ...base.upgrades, ...(parsed.upgrades ?? {}) },
       discovered: Array.isArray(parsed.discovered) ? parsed.discovered : [],
       shiftsDone: typeof parsed.shiftsDone === 'number' ? parsed.shiftsDone : 0,

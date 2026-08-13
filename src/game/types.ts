@@ -54,8 +54,29 @@ export interface BoardObject {
   beingPulled: boolean;
 }
 
+export type ZoneId = 'hurdalik' | 'atolye' | 'liman' | 'kasa';
+
+export interface ZoneDef {
+  id: ZoneId;
+  name: string;
+  subtitle: string;
+  /** Drives the zone card's tint on the menu and the arena frame. */
+  accent: string;
+  floorTile: string;
+  frameTile: string;
+  /** Scrap value the zone wants before the next one opens; null on the last. */
+  quota: number | null;
+  /** Relative spawn weight per tier. Zero keeps a tier out of the zone. */
+  pool: Record<Rarity, number>;
+}
+
 export interface PersistentState {
   coins: number;
+  /** Where the player is now. */
+  zone: ZoneId;
+  /** Scrap value banked per zone, ever. Never resets, so a cleared zone can
+   *  still be farmed. */
+  zoneProgress: Partial<Record<ZoneId, number>>;
   upgrades: Record<UpgradeId, number>;
   discovered: string[];
   /** Number of shifts completed — the next one is `shiftsDone + 1`. */

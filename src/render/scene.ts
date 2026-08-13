@@ -1,5 +1,6 @@
 import type { RunManager } from '../game/run';
 import { RARITY_COLOR, SCENE_SPRITES } from '../game/content';
+import { ZONES } from '../game/zones';
 import { loadImage } from './assets';
 import { Fx } from './fx';
 
@@ -71,6 +72,10 @@ export class Scene {
     if (!ctx) throw new Error('no 2d context');
     this.ctx = ctx;
     for (const src of Object.values(SCENE_SPRITES)) loadImage(src);
+    for (const zone of ZONES) {
+      loadImage(zone.floorTile);
+      loadImage(zone.frameTile);
+    }
   }
 
   /** Kick the magnet's squash — 1 is a full stretch, decaying over ~0.25s. */
@@ -95,7 +100,7 @@ export class Scene {
     ctx.fillStyle = '#0d1430';
     ctx.fillRect(0, 0, this.width, this.height);
 
-    const tile = loadImage(SCENE_SPRITES.floorTile);
+    const tile = loadImage(run.zone.floorTile);
     if (tile.complete && tile.naturalWidth > 0) {
       const size = Math.max(48, run.scaleRef * 0.16);
       ctx.save();
@@ -124,7 +129,7 @@ export class Scene {
     ctx.fillRect(0, 0, f, h);
     ctx.fillRect(w - f, 0, f, h);
 
-    const hazard = loadImage(SCENE_SPRITES.hazardTile);
+    const hazard = loadImage(run.zone.frameTile);
     if (hazard.complete && hazard.naturalWidth > 0) {
       const segW = f * (hazard.naturalWidth / hazard.naturalHeight);
       ctx.save();
@@ -136,9 +141,13 @@ export class Scene {
       ctx.restore();
     }
 
-    ctx.strokeStyle = 'rgba(255, 190, 70, 0.7)';
+    // The frame picks up the zone's accent, so the place is readable from the
+    // arena border alone.
+    ctx.strokeStyle = run.zone.accent;
+    ctx.globalAlpha = 0.75;
     ctx.lineWidth = 2;
     ctx.strokeRect(rect.minX + 1, rect.minY + 1, rect.maxX - rect.minX - 2, rect.maxY - rect.minY - 2);
+    ctx.globalAlpha = 1;
   }
 
   private drawBoardObjects(run: RunManager): void {

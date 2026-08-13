@@ -1,30 +1,42 @@
-import type { BoardObject, ItemDef, Rarity, Vec2 } from './types';
+import type { BoardObject, ItemDef, Rarity, Vec2, ZoneDef } from './types';
 import type { ArenaRect } from './magnet';
 import { ITEMS_BY_RARITY } from './content';
 
 let uidCounter = 1;
 
-/** Rolled from the rarest tier down, so each band is checked against the slice
- *  of the roll below it. Loot Quality widens every band, but the top two stay
- *  rare enough that pulling one is the story of the shift rather than a
- *  routine pickup. */
-function pickRarity(qualityLevel: number): Rarity {
-  const legendaryChance = 0.0015 + qualityLevel * 0.0011;
-  const epicChance = 0.005 + qualityLevel * 0.003;
-  const rareChance = 0.01 + qualityLevel * 0.01;
-  const uncommonChance = 0.14 + qualityLevel * 0.012;
+/**
+ * Rolled from the rarest tier down, so each band is checked against the slice
+ * of the roll below it. Loot Quality widens every band, but the top two stay
+ * rare enough that pulling one is the story of the shift rather than a routine
+ * pickup.
+ *
+ * The zone then scales each band by its own weight. A tier the zone weights at
+ * zero simply never comes up, which is what makes the opening zone read as a
+ * scrapyard and the last one as a vault — same roll, different place.
+ */
+function pickRarity(qualityLevel: number, zone: ZoneDef): Rarity {
+  const bands: Array<[Rarity, number]> = [
+    ['legendary', (0.0015 + qualityLevel * 0.0011) * zone.pool.legendary],
+    ['epic', (0.005 + qualityLevel * 0.003) * zone.pool.epic],
+    ['rare', (0.01 + qualityLevel * 0.01) * zone.pool.rare],
+    ['uncommon', (0.14 + qualityLevel * 0.012) * zone.pool.uncommon],
+  ];
 
   const roll = Math.random();
-  if (roll < legendaryChance) return 'legendary';
-  if (roll < legendaryChance + epicChance) return 'epic';
-  if (roll < legendaryChance + epicChance + rareChance) return 'rare';
-  if (roll < legendaryChance + epicChance + rareChance + uncommonChance) return 'uncommon';
+  let floor = 0;
+  for (const [tier, width] of bands) {
+    floor += width;
+    if (roll < floor) return tier;
+  }
   return 'common';
 }
 
-function pickItem(qualityLevel: number): ItemDef {
-  const rarity = pickRarity(qualityLevel);
+function pickItem(qualityLevel: number, zone: ZoneDef): ItemDef {
+  const rarity = pickRarity(qualityLevel, zone);
   const pool = ITEMS_BY_RARITY[rarity];
+  // A zone that weights `common` down can still land on it when every richer
+  // band misses; falling back keeps the board full rather than short.
+  if (pool.length === 0) return ITEMS_BY_RARITY.common[0];
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -34,6 +46,7 @@ export function generateBoard(
   magnetStart: Vec2,
   magnetRadius: number,
   qualityLevel: number,
+  zone: ZoneDef,
 ): BoardObject[] {
   const width = rect.maxX - rect.minX;
   const height = rect.maxY - rect.minY;
@@ -68,7 +81,7 @@ export function generateBoard(
 
     objects.push({
       uid: uidCounter++,
-      item: pickItem(qualityLevel),
+      item: pickItem(qualityLevel, zone),
       pos: { x, y: rect.minY - radius * 2 - Math.random() * height },
       targetPos: { x, y },
       radius,
