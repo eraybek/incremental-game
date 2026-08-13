@@ -19,7 +19,7 @@ import {
   shiftDuration,
   shiftShots,
 } from '../game/state';
-import { ZONES, isZoneUnlocked, nextZone } from '../game/zones';
+import { MENU_BACKGROUND, ZONES, isZoneUnlocked, nextZone } from '../game/zones';
 import { isAudioEnabled, playSfx, setAudioEnabled, setSfxVolume } from '../audio/sfx';
 import { button as rawButton, el, img, show } from './dom';
 
@@ -290,6 +290,7 @@ export class Ui {
    */
   private buildMenu(): void {
     const panel = this.panel('menu', 'menu-screen');
+    panel.style.backgroundImage = `url('${MENU_BACKGROUND}')`;
 
     const topBar = el('div', 'menu-top');
     this.menuCoins = el('div', 'coin-pill');

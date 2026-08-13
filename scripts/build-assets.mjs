@@ -16,7 +16,7 @@
  *   node scripts/build-assets.mjs
  */
 
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadSheet, slice, crop, encodePng } from './slice-sheet.mjs';
@@ -155,5 +155,20 @@ for (const [index, name] of Object.entries(NAMES)) {
   manifest.push({ name, index: Number(index), width: img.width, height: img.height });
 }
 
+// Backgrounds need no slicing, but they still have to be produced here: this
+// script wipes `public/assets` on every run, so anything dropped in by hand
+// would vanish on the next build.
+const bgSrc = join(root, 'assets-src/bg');
+const bgOut = join(outRoot, 'bg');
+mkdirSync(bgOut, { recursive: true });
+let backgrounds = 0;
+for (const file of readdirSync(bgSrc)) {
+  if (!/\.(jpg|jpeg|png|webp)$/i.test(file)) continue;
+  copyFileSync(join(bgSrc, file), join(bgOut, file));
+  backgrounds++;
+}
+
 writeFileSync(join(outRoot, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`${sprites.length} sprites found, ${manifest.length} named and written to public/assets`);
+console.log(
+  `${sprites.length} sprites found, ${manifest.length} named, ${backgrounds} backgrounds copied -> public/assets`,
+);

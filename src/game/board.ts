@@ -5,28 +5,43 @@ import { ITEMS_BY_RARITY } from './content';
 let uidCounter = 1;
 
 /**
- * Rolled from the rarest tier down, so each band is checked against the slice
- * of the roll below it. Loot Quality widens every band, but the top two stay
- * rare enough that pulling one is the story of the shift rather than a routine
- * pickup.
+ * How much one level of Loot Quality lifts a tier's share. Common gets nothing,
+ * so every level moves mass out of junk and into the tiers above it; the higher
+ * the tier, the harder it climbs.
+ */
+const QUALITY_LIFT: Record<Rarity, number> = {
+  common: 0,
+  uncommon: 0.03,
+  rare: 0.08,
+  epic: 0.1,
+  legendary: 0.12,
+};
+
+/**
+ * The zone states the mix it wants as relative shares, and this normalises them
+ * into a roll.
  *
- * The zone then scales each band by its own weight. A tier the zone weights at
- * zero simply never comes up, which is what makes the opening zone read as a
- * scrapyard and the last one as a vault — same roll, different place.
+ * The earlier version rolled each tier against a fixed base rate and scaled it
+ * by the zone's weight, letting `common` absorb whatever was left. That made
+ * `pool.common` dead weight — the vault zone asked for 0.15 common and still
+ * dealt 86% common, because "everything else" is not something a weight can
+ * shrink. Sharing out the whole distribution instead is what lets a zone
+ * actually suppress junk.
  */
 function pickRarity(qualityLevel: number, zone: ZoneDef): Rarity {
-  const bands: Array<[Rarity, number]> = [
-    ['legendary', (0.0015 + qualityLevel * 0.0011) * zone.pool.legendary],
-    ['epic', (0.005 + qualityLevel * 0.003) * zone.pool.epic],
-    ['rare', (0.01 + qualityLevel * 0.01) * zone.pool.rare],
-    ['uncommon', (0.14 + qualityLevel * 0.012) * zone.pool.uncommon],
-  ];
+  const tiers = Object.keys(zone.pool) as Rarity[];
 
-  const roll = Math.random();
-  let floor = 0;
-  for (const [tier, width] of bands) {
-    floor += width;
-    if (roll < floor) return tier;
+  let total = 0;
+  const weights = tiers.map((tier) => {
+    const w = zone.pool[tier] * (1 + qualityLevel * QUALITY_LIFT[tier]);
+    total += w;
+    return w;
+  });
+
+  let roll = Math.random() * total;
+  for (let i = 0; i < tiers.length; i++) {
+    roll -= weights[i];
+    if (roll < 0) return tiers[i];
   }
   return 'common';
 }

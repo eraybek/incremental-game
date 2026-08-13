@@ -73,7 +73,7 @@ export class Scene {
     this.ctx = ctx;
     for (const src of Object.values(SCENE_SPRITES)) loadImage(src);
     for (const zone of ZONES) {
-      loadImage(zone.floorTile);
+      loadImage(zone.floor);
       loadImage(zone.frameTile);
     }
   }
@@ -92,27 +92,29 @@ export class Scene {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  /** Tiled stone floor under a heavy navy wash. The tile carries the texture,
-   *  the wash keeps it dark enough that loot and the magnet still own the
-   *  contrast — the floor should read as a surface, never compete. */
+  /**
+   * The zone's painted floor, drawn to cover the canvas the way CSS
+   * `background-size: cover` would: scaled by whichever axis needs more and
+   * centred, so a 9:16 painting fits an arena of any shape without stretching.
+   *
+   * The art is already dark — the four floors measure between 13% and 19%
+   * average brightness — so this only lays a thin wash over it. The heavy one
+   * the tiled placeholder needed would bury the texture that was the point of
+   * commissioning the art.
+   */
   private drawFloor(run: RunManager): void {
     const ctx = this.ctx;
-    ctx.fillStyle = '#0d1430';
+    ctx.fillStyle = '#0a1f45';
     ctx.fillRect(0, 0, this.width, this.height);
 
-    const tile = loadImage(run.zone.floorTile);
-    if (tile.complete && tile.naturalWidth > 0) {
-      const size = Math.max(48, run.scaleRef * 0.16);
-      ctx.save();
-      ctx.globalAlpha = 0.16;
-      for (let y = 0; y < this.height; y += size) {
-        for (let x = 0; x < this.width; x += size) {
-          ctx.drawImage(tile, x, y, size, size);
-        }
-      }
-      ctx.restore();
+    const floor = loadImage(run.zone.floor);
+    if (floor.complete && floor.naturalWidth > 0) {
+      const scale = Math.max(this.width / floor.naturalWidth, this.height / floor.naturalHeight);
+      const w = floor.naturalWidth * scale;
+      const h = floor.naturalHeight * scale;
+      ctx.drawImage(floor, (this.width - w) / 2, (this.height - h) / 2, w, h);
 
-      ctx.fillStyle = 'rgba(13, 20, 48, 0.55)';
+      ctx.fillStyle = 'rgba(10, 31, 69, 0.22)';
       ctx.fillRect(0, 0, this.width, this.height);
     }
   }

@@ -350,8 +350,57 @@ body {
   gap: 12px;
   padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px
            calc(env(safe-area-inset-bottom, 0px) + 14px);
-  background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+  /* The image itself is set from JS: asset URLs have to go through
+     `asset()` so they survive the GitHub Pages subpath, and a url() written
+     here would resolve against the site root instead. */
+  background: var(--bg-2) center / cover no-repeat;
 }
+
+/* The painting is bright and busy where the buttons sit, so a scrim goes over
+   it: darker at top and bottom where the panels are, barely there across the
+   middle so the doorway and the light coming through it still read. */
+.menu-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 30, 66, 0.8) 0%,
+    rgba(8, 30, 66, 0.3) 34%,
+    rgba(8, 30, 66, 0.4) 64%,
+    rgba(8, 30, 66, 0.88) 100%
+  );
+}
+
+/* Everything above the scrim. */
+.menu-screen > * { position: relative; z-index: 1; }
+
+/* The stack sits low, leaving the top of the frame to the painting. The
+   doorway and the light coming through it are the best part of the art and
+   they live in the upper half; without this the cards land right on top of
+   them and the bottom quarter of the screen sits empty. */
+.menu-screen .zone-card { margin-top: auto; }
+
+/* Panels on the menu let the painting through. Opaque ones covered so much of
+   it that commissioning the art was pointless; at 80% the workshop still reads
+   between and behind the cards while the text keeps its contrast. */
+.menu-screen .zone-card,
+.menu-screen .stat-rows {
+  background: rgba(18, 72, 142, 0.8);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.menu-screen .coin-pill,
+.menu-screen .round-btn,
+.menu-screen .zone-chip {
+  background: rgba(12, 45, 92, 0.82);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.menu-screen .zone-chip.active { background: rgba(22, 87, 168, 0.9); }
 
 .menu-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 

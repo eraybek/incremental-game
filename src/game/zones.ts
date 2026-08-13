@@ -4,6 +4,9 @@ import { asset } from '../assetPath';
 
 const A = asset('assets');
 
+/** Painted backdrop behind the main menu. */
+export const MENU_BACKGROUND = `${A}/bg/menu.jpg`;
+
 /**
  * Quotas were first set by eye at 1200 / 9000 / 45000 and then measured: an
  * automated run of 41 shifts with random aim — the floor of what a player
@@ -37,15 +40,15 @@ export const ZONES: ZoneDef[] = [
     name: 'Hurdalık',
     subtitle: 'Vidalar, somunlar ve unutulmuş takımlar.',
     accent: '#6fd36f',
-    floorTile: `${A}/environment/stone.png`,
+    floor: `${A}/bg/hurdalik.jpg`,
     frameTile: `${A}/environment/hazard.png`,
     quota: 1200,
-    // The opening zone stays honest junk: no jewellery, no treasure. A rare
-    // pull here is a trophy or a gold bar, not a crown.
+    // Honest junk: no jewellery, no treasure. A rare pull here is a trophy or
+    // a gold bar, never a crown.
     pool: {
-      common: 1,
-      uncommon: 0.55,
-      rare: 0.35,
+      common: 85,
+      uncommon: 14,
+      rare: 1,
       epic: 0,
       legendary: 0,
     },
@@ -55,14 +58,14 @@ export const ZONES: ZoneDef[] = [
     name: 'Atölye',
     subtitle: 'Aletler, elektronik ve kasadan artakalanlar.',
     accent: '#4bb4ff',
-    floorTile: `${A}/environment/metal.png`,
+    floor: `${A}/bg/atolye.jpg`,
     frameTile: `${A}/environment/hazard.png`,
     quota: 5000,
     pool: {
-      common: 0.8,
-      uncommon: 1,
-      rare: 0.8,
-      epic: 0.4,
+      common: 62,
+      uncommon: 28,
+      rare: 7,
+      epic: 3,
       legendary: 0,
     },
   },
@@ -71,15 +74,15 @@ export const ZONES: ZoneDef[] = [
     name: 'Liman Deposu',
     subtitle: 'Konteynerlerden düşenler. Ağır ve değerli.',
     accent: '#c07cff',
-    floorTile: `${A}/environment/grate.png`,
+    floor: `${A}/bg/liman.jpg`,
     frameTile: `${A}/environment/hazard.png`,
     quota: 18000,
     pool: {
-      common: 0.5,
-      uncommon: 0.9,
-      rare: 1,
-      epic: 0.9,
-      legendary: 0.5,
+      common: 38,
+      uncommon: 36,
+      rare: 17,
+      epic: 8,
+      legendary: 1,
     },
   },
   {
@@ -87,17 +90,17 @@ export const ZONES: ZoneDef[] = [
     name: 'Kasa Dairesi',
     subtitle: 'Sadece kıymetli olan. Hurda burada bulunmaz.',
     accent: '#ffc837',
-    floorTile: `${A}/environment/wood.png`,
+    floor: `${A}/bg/kasa.jpg`,
     frameTile: `${A}/environment/hazard.png`,
     // The last zone has no quota — nothing comes after it, so it is where the
     // long game lives.
     quota: null,
     pool: {
-      common: 0.15,
-      uncommon: 0.6,
-      rare: 1,
-      epic: 1,
-      legendary: 1,
+      common: 14,
+      uncommon: 34,
+      rare: 32,
+      epic: 15,
+      legendary: 5,
     },
   },
 ];

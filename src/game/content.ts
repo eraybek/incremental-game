@@ -27,7 +27,6 @@ export const SCENE_SPRITES = {
   magnetPulse: `${A}/magnet/pulse.png`,
   magnetLoaded: `${A}/magnet/loaded.png`,
   hazardTile: `${A}/environment/hazard.png`,
-  floorTile: `${A}/environment/metal.png`,
   /** Sprite-based hit and collect bursts, replacing drawn circles. */
   spark: `${A}/fx/burst.png`,
   dust: `${A}/fx/dust.png`,

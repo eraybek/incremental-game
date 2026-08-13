@@ -71,11 +71,16 @@ export interface ZoneDef {
   subtitle: string;
   /** Drives the zone card's tint on the menu and the arena frame. */
   accent: string;
-  floorTile: string;
+  /** Full-bleed arena background, drawn to cover the canvas. */
+  floor: string;
   frameTile: string;
   /** Scrap value the zone wants before the next one opens; null on the last. */
   quota: number | null;
-  /** Relative spawn weight per tier. Zero keeps a tier out of the zone. */
+  /**
+   * The mix of rarities this zone deals, as relative shares of the whole board
+   * — not multipliers on a fixed base rate. Zero keeps a tier out entirely.
+   * Loot Quality then shifts mass upward out of `common`.
+   */
   pool: Record<Rarity, number>;
 }
 
